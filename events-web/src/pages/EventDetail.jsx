@@ -5,24 +5,23 @@ function EventDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // ESTADOS
+  // --- ESTADOS ---
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
-  const [isEnrolled, setIsEnrolled] = useState(false); //
+  const [isEnrolled, setIsEnrolled] = useState(false); // Estado para saber si estoy apuntado
 
-  
   // Estados para las estrellas
-  const [rating, setRating] = useState(0); // Nota del usuario (voto)
-  const [hover, setHover] = useState(0);   // Efecto visual al pasar el ratón
+  const [rating, setRating] = useState(0); // Nota actual
+  const [hover, setHover] = useState(0);   // Efecto visual (hover)
 
-  // DATOS DEL USUARIO
+  // Datos de sesión
   const token = localStorage.getItem('auth_token');
-  const currentUserId = localStorage.getItem('user_id');
+  // Leemos el ID y lo convertimos a número entero para comparar bien
+  const currentUserId = parseInt(localStorage.getItem('user_id'));
 
   // 1. CARGAR DATOS DEL EVENTO
   useEffect(() => {
-    // Preparamos las cabeceras. Si hay token, lo enviamos para que el backend nos reconozca.
     const headers = { 
         'Content-Type': 'application/json',
         'Accept': 'application/json'
@@ -38,54 +37,55 @@ function EventDetail() {
         setEvent(data);
         setLoading(false);
 
-        // SI EL BACKEND DICE QUE YA VOTAMOS, ACTUALIZAMOS LAS ESTRELLAS
+        // Si el backend dice que ya votamos, pintamos las estrellas
         if (data.user_rating) {
             setRating(data.user_rating);
         }
-        if (data.user_rating) {
-            setRating(data.user_rating);
-        }
-        //NUEVO: Actualizar estado del botón ---
+        
+        // Actualizamos estado del botón de inscripción
         setIsEnrolled(data.is_enrolled);
       })
       .catch(err => console.error("Error cargando evento:", err));
   }, [id, token]);
-    const handleEnroll = async () => {
-        if (!token) {
-            alert("Inicia sesión para comprar una entrada.");
-            return;
-        }
 
-        // Si ya estoy inscrito, el botón servirá para CANCELAR (DELETE)
-        // Si no, servirá para COMPRAR (POST)
-        const method = isEnrolled ? 'DELETE' : 'POST';
-        
-        try {
-            const response = await fetch(`http://127.0.0.1:8000/api/events/${id}/enroll`, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
 
-            if (response.ok) {
-                if (isEnrolled) {
-                    alert("Has cancelado tu inscripción.");
-                    setIsEnrolled(false);
-                } else {
-                    alert("¡Entrada comprada con éxito!");
-                    setIsEnrolled(true);
-                }
-            } else {
-                const errorData = await response.json();
-                alert(errorData.message || "Error al procesar la solicitud");
+  // 2. FUNCIÓN PARA INSCRIBIRSE / CANCELAR
+  const handleEnroll = async () => {
+    if (!token) {
+        alert("Inicia sesión para comprar una entrada.");
+        return;
+    }
+
+    // Si ya estoy inscrito -> DELETE. Si no -> POST.
+    const method = isEnrolled ? 'DELETE' : 'POST';
+    
+    try {
+        const response = await fetch(`http://127.0.0.1:8000/api/events/${id}/enroll`, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             }
-        } catch (error) {
-            console.error("Error:", error);
+        });
+
+        if (response.ok) {
+            if (isEnrolled) {
+                alert("Has cancelado tu inscripción.");
+                setIsEnrolled(false);
+            } else {
+                alert("¡Entrada comprada con éxito!");
+                setIsEnrolled(true);
+            }
+        } else {
+            const errorData = await response.json();
+            alert(errorData.message || "Error al procesar la solicitud");
         }
-    };
-  // 2. FUNCIÓN PARA VOTAR (ESTRELLAS)
+    } catch (error) {
+        console.error("Error:", error);
+    }
+  };
+
+  // 3. FUNCIÓN PARA VOTAR (ESTRELLAS)
   const handleRate = async (stars) => {
     if (!token) {
         alert("Debes iniciar sesión para votar.");
@@ -103,10 +103,8 @@ function EventDetail() {
         });
 
         if (response.ok) {
-            setRating(stars); // Fijamos visualmente la nota
+            setRating(stars); 
             alert(`¡Gracias! Has votado con ${stars} estrellas ⭐`);
-            // Podrías recargar la página aquí para actualizar el promedio al instante, 
-            // pero por ahora lo dejamos así para no cortar la experiencia.
         } else {
             alert("Error al guardar tu voto.");
         }
@@ -115,8 +113,7 @@ function EventDetail() {
     }
   };
 
-
-  // 3. FUNCIÓN PARA ENVIAR COMENTARIO
+  // 4. FUNCIÓN PARA ENVIAR COMENTARIO
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
@@ -133,7 +130,7 @@ function EventDetail() {
 
         if (response.ok) {
             const commentCreated = await response.json();
-            // Actualizamos la lista de comentarios sin recargar
+            // Añadimos el nuevo comentario a la lista visualmente
             setEvent({ ...event, comments: [commentCreated, ...event.comments] });
             setNewComment(""); 
         } else {
@@ -144,7 +141,7 @@ function EventDetail() {
     }
   };
 
-  // 4. FUNCIÓN PARA BORRAR COMENTARIO
+  // 5. FUNCIÓN PARA BORRAR COMENTARIO
   const handleCommentDelete = async (commentId) => {
     if (!window.confirm("¿Borrar comentario?")) return;
     try {
@@ -158,18 +155,20 @@ function EventDetail() {
     } catch (error) { console.error(error); }
   };
 
-  // 5. FUNCIÓN PARA BORRAR EVENTO
+  // 6. FUNCIÓN PARA BORRAR EVENTO
   const handleDeleteEvent = async () => {
     if (!window.confirm("¿Seguro que quieres borrar este evento?")) return;
+    
     const res = await fetch(`http://127.0.0.1:8000/api/events/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
     });
+    
     if (res.ok) {
         alert("Evento borrado");
-        window.location.href = '/';
+        window.location.href = '/'; // O navigate('/')
     } else {
-        alert("No tienes permiso");
+        alert("No tienes permiso o hubo un error.");
     }
   };
 
@@ -214,18 +213,17 @@ function EventDetail() {
                                 </span>
                             );
                         })}
-                        {/* Mostrar promedio si existe */}
                         <div className="text-muted small mt-1">
                             {event.ratings_avg_stars 
                                 ? `Nota media: ${parseFloat(event.ratings_avg_stars).toFixed(1)} / 5` 
                                 : "Sé el primero en votar"}
                         </div>
                     </div>
-                    {/* ------------------------- */}
 
-                    {/* Botones Admin */}
-                    {token && (
-                        <div className="mt-4">
+                    {/* --- BOTONES DE ADMIN / DUEÑO (CORREGIDO) --- */}
+                    {/* Solo se muestran si el backend dice 'can_edit' = true */}
+                    {event.can_edit && (
+                        <div className="mt-4 border-top pt-3">
                             <button onClick={handleDeleteEvent} className="btn btn-danger me-2">🗑 Borrar Evento</button>
                             <Link to={`/event/edit/${id}`} className="btn btn-primary">✏️ Editar Evento</Link>
                         </div>
@@ -263,10 +261,12 @@ function EventDetail() {
                                     </span>
                                     <p className="mb-0 mt-1">{comment.content}</p>
                                 </div>
-                                {token && (
+                                {/* CONDICIÓN: Estar logueado Y ser el dueño del comentario */}
+                                {token && comment.user_id === currentUserId && (
                                     <button 
                                         onClick={() => handleCommentDelete(comment.id)} 
                                         className="btn btn-sm btn-outline-danger border-0"
+                                        title="Borrar comentario"
                                     >
                                         &times;
                                     </button>
@@ -278,7 +278,7 @@ function EventDetail() {
             </div>
         </div>
 
-        {/* COLUMNA DERECHA */}
+        {/* COLUMNA DERECHA: SIDEBAR */}
         <div className="col-md-4">
             <div className="card shadow-sm p-3">
                 <h5>Detalles extra</h5>
@@ -286,7 +286,8 @@ function EventDetail() {
                     <li><strong>Categoría:</strong> {event.category ? event.category.name : 'General'}</li>
                     <li><strong>Organizador:</strong> {event.user ? event.user.name : 'Anónimo'}</li>
                 </ul>
-                {/* BOTÓN INTELIGENTE */}
+                
+                {/* BOTÓN DE COMPRA / CANCELACIÓN */}
                 <button 
                     onClick={handleEnroll}
                     className={`btn w-100 mt-2 ${isEnrolled ? "btn-danger" : "btn-success"}`}

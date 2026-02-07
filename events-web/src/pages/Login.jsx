@@ -7,7 +7,7 @@ function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   
-  // Hook para redirigir al usuario cuando haga login
+  // Hook para redirigir
   const navigate = useNavigate();
 
   // 2. Función que se ejecuta al enviar el formulario
@@ -20,7 +20,7 @@ function Login() {
       const response = await fetch('http://127.0.0.1:8000/api/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json', // Importante: Decimos que enviamos JSON
+          'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
         body: JSON.stringify({ email, password })
@@ -32,11 +32,14 @@ function Login() {
         // ¡ÉXITO!
         console.log("Login correcto:", data);
         
-        // Guardamos el TOKEN en la memoria del navegador (localStorage)
+        // --- GUARDAMOS LOS DATOS EN EL NAVEGADOR ---
         localStorage.setItem('auth_token', data.access_token);
         localStorage.setItem('user_name', data.user.name);
+        
+        // Guardamos el ID para saber quiénes somos al borrar comentarios
+        localStorage.setItem('user_id', data.user.id); 
 
-        // Redirigimos a la página principal
+        // Redirigimos a la página principal y recargamos para actualizar el menú
         window.location.href = '/';
       } else {
         // ERROR (Contraseña mal, etc.)
@@ -51,15 +54,16 @@ function Login() {
 
   return (
     <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h2>🔐 Iniciar Sesión</h2>
+      <h2 className="text-center mb-4">🔐 Iniciar Sesión</h2>
       
-      {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+      {error && <div className="alert alert-danger">{error}</div>}
 
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '15px' }}>
           <label>Email:</label>
           <input 
             type="email" 
+            className="form-control" // estilo bootstrap 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -71,6 +75,7 @@ function Login() {
           <label>Contraseña:</label>
           <input 
             type="password" 
+            className="form-control"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -78,7 +83,7 @@ function Login() {
           />
         </div>
 
-        <button type="submit" style={{ width: '100%', padding: '10px', background: 'green', color: 'white', border: 'none', cursor: 'pointer' }}>
+        <button type="submit" className="btn btn-success w-100" style={{ padding: '10px' }}>
           Entrar
         </button>
       </form>

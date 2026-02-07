@@ -1,5 +1,5 @@
 <?php
-
+//En api.php le decimos a Laravel que acepte peticiones//
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\EventController;
@@ -42,6 +42,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-enrollments', function (Request $request) {
         return $request->user()->enrollments()->with('event')->get();
     });
+    
+    //Mis entradas// Eventos que se apunta el usuario
+    Route::get('/my-events', [App\Http\Controllers\Api\EventController::class, 'myEvents']);
+
     // RUTA PARA VOTAR
     Route::post('/events/{id}/rate', [App\Http\Controllers\Api\RatingController::class, 'store']);
     
