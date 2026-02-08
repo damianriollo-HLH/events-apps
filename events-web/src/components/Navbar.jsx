@@ -53,7 +53,9 @@ function Navbar() {
               /* SI HAY TOKEN (Usuario Conectado) mostramos esto: */
               <>
                 <li className="nav-item">
-                  <span className="nav-link text-warning">Hola, {userName}</span>
+                    <Link className="nav-link text-warning fw-bold" to="/profile">
+                        👤 Hola, {userName}
+                    </Link>
                 </li>
                 
                 {/* Enlace al Dashboard General */}

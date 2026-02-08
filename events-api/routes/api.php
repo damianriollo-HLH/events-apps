@@ -46,6 +46,9 @@ Route::middleware('auth:sanctum')->group(function () {
     //Mis entradas// Eventos que se apunta el usuario
     Route::get('/my-events', [App\Http\Controllers\Api\EventController::class, 'myEvents']);
 
+    
+    Route::put('/profile', [App\Http\Controllers\Api\ProfileController::class, 'update']);
+
     // RUTA PARA VOTAR
     Route::post('/events/{id}/rate', [App\Http\Controllers\Api\RatingController::class, 'store']);
     

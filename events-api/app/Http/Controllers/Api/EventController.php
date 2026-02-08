@@ -8,34 +8,58 @@ use Illuminate\Http\Request;
 
 class EventController extends Controller
 {
-    // GET /api/events (Público - Ver lista)
-    public function index()
+    // GET /api/events (Público - Con Buscador)
+    public function index(Request $request)
     {
-        // Traemos eventos con su categoría y creador para mostrarlos bonitos
-        $events = Event::with(['category', 'user'])
-            ->where('status', 'published')     // Solo los publicados
-            ->orderBy('avg_rating', 'desc')    // Primero los mejor valorados
-            ->orderBy('start_at', 'asc')       // Luego los más próximos
-            ->get();
+        // Iniciamos la consulta base (aún no pedimos los datos con get)
+        $query = Event::with(['category', 'user'])
+            ->where('status', 'published');
+
+        // ¿Hay algo en la caja de búsqueda?
+        if ($request->has('search')) {
+            $searchTerm = $request->input('search');
+            
+            // Filtramos: Que el título O la descripción contengan el texto
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('title', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Ordenamos y entregamos los resultados
+        $events = $query->orderBy('start_at', 'asc')->get();
 
         return response()->json($events);
     }
 
-    // POST /api/events (Privado - Crear Evento)
+// POST /api/events (Privado - Crear Evento con Imagen)
     public function store(Request $request)
     {
-        // 1. Validamos los datos que vienen del formulario
+        // 1. Validamos los datos (Añadimos 'image' como opcional pero que sea imagen)
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'date' => 'required|date',
             'price' => 'required|numeric',
             'category_id' => 'required|exists:categories,id',
-            'capacity' => 'nullable|integer|min:1' // <--- NUEVO: Aceptamos aforo (opcional)
+            'capacity' => 'nullable|integer|min:1',
+            'image' => 'nullable|image|max:2048' // Máximo 2MB, debe ser jpg, png, etc.
         ]);
 
-        // 2. Creamos el evento asociado al usuario logueado
-        // Usamos el operador '??' para decir: "Si no envían capacidad, pon 50 por defecto"
+        // 2. Manejo de la IMAGEN
+        $imageUrl = null; // Por defecto null
+
+        if ($request->hasFile('image')) {
+            // Guardamos la imagen en la carpeta 'public/events'
+            // Laravel nos devuelve la ruta interna (ej: events/foto.jpg)
+            $path = $request->file('image')->store('events', 'public');
+            
+            // Convertimos esa ruta en una URL pública completa
+            // Ej: http://localhost:8000/storage/events/foto.jpg
+            $imageUrl = asset('storage/' . $path);
+        }
+
+        // 3. Crear el evento
         $event = $request->user()->events()->create([
             'title' => $validated['title'],
             'description' => $validated['description'],
@@ -43,7 +67,8 @@ class EventController extends Controller
             'end_at' => $validated['date'],
             'price' => $validated['price'],
             'category_id' => $validated['category_id'],
-            'capacity' => $validated['capacity'] ?? 50, // <--- SOLUCIÓN AL BUG "EVENTO LLENO"
+            'capacity' => $validated['capacity'] ?? 50,
+            'image' => $imageUrl, // <--- Aquí guardamos la URL
             'status' => 'published'
         ]);
 

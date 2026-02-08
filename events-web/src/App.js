@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import EditEvent from './pages/EditEvent';
 import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
+import Profile from './pages/Profile';
 
 // --- Componente Principal App ---
 function App() {
@@ -27,6 +28,7 @@ function App() {
           <Route path="/event/edit/:id" element={<EditEvent />} />
           <Route path="/dashboard" element={<Dashboard />} /> 
           <Route path="/register" element={<Register />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </div>
     </div>
