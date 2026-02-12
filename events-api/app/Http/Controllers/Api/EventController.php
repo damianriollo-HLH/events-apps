@@ -25,6 +25,11 @@ class EventController extends Controller
                   ->orWhere('description', 'LIKE', "%{$searchTerm}%");
             });
         }
+        //FILTRO POR CATEGORÍA (¡NUEVO!)
+        if ($request->has('category')) {
+            $categoryId = $request->input('category');
+            $query->where('category_id', $categoryId);
+        }
 
         // Ordenamos y entregamos los resultados
         $events = $query->orderBy('start_at', 'asc')->get();
@@ -112,39 +117,50 @@ class EventController extends Controller
         return response()->json($event);
     }
 
-    // PUT /api/events/{id} (Privado - Editar Evento)
+    // PUT /api/events/{id} (Privado - Editar Evento con Imagen)
     public function update(Request $request, $id)
     {
         $event = Event::findOrFail($id);
 
-        // --- SEGURIDAD: Solo el dueño o el admin pueden editar ---
+        // --- SEGURIDAD ---
         $isOwner = $event->user_id === $request->user()->id;
         $isAdmin = $request->user()->role === 'admin';
 
         if (!$isOwner && !$isAdmin) {
-            return response()->json(['message' => 'No tienes permiso para editar este evento'], 403);
+            return response()->json(['message' => 'No tienes permiso'], 403);
         }
 
-        // Validamos (nullable significa que no es obligatorio enviar el dato si no ha cambiado)
+        // 1. Validamos (todo nullable porque quizás solo quieras cambiar la foto)
         $validated = $request->validate([
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'date' => 'nullable|date',
             'price' => 'nullable|numeric',
             'category_id' => 'nullable|exists:categories,id',
-            'capacity' => 'nullable|integer|min:1' // <--- NUEVO: Permitir editar aforo
+            'capacity' => 'nullable|integer|min:1',
+            'image' => 'nullable|image|max:2048' // Validación de imagen
         ]);
 
-        // Actualizamos solo lo que venga en la petición
-        $event->update([
+        // 2. Preparar los datos a actualizar
+        $dataToUpdate = [
             'title' => $validated['title'] ?? $event->title,
             'description' => $validated['description'] ?? $event->description,
             'start_at' => $validated['date'] ?? $event->start_at,
             'end_at' => $validated['date'] ?? $event->end_at,
             'price' => $validated['price'] ?? $event->price,
             'category_id' => $validated['category_id'] ?? $event->category_id,
-            'capacity' => $validated['capacity'] ?? $event->capacity, // <--- NUEVO
-        ]);
+            'capacity' => $validated['capacity'] ?? $event->capacity,
+        ];
+
+        // 3. ¿Han subido una IMAGEN NUEVA?
+        if ($request->hasFile('image')) {
+            // Guardamos la nueva
+            $path = $request->file('image')->store('events', 'public');
+            $dataToUpdate['image'] = asset('storage/' . $path);
+        }
+
+        // 4. Guardamos cambios
+        $event->update($dataToUpdate);
 
         return response()->json(['message' => 'Evento actualizado', 'event' => $event]);
     }

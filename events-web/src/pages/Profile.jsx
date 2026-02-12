@@ -1,32 +1,32 @@
 import { useState, useEffect } from 'react';
 
 function Profile() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    password_confirmation: ''
-  });
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  
+  // Estados para la imagen
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null); // Para ver la foto actual o la nueva
+
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
-  
-  // Cargamos los datos actuales del usuario al entrar
+
+  // Cargar datos actuales (Simulado desde localStorage para el nombre, idealmente sería un fetch)
   useEffect(() => {
-    // Recuperamos nombre del localStorage (o podríamos pedirlo a la API)
-    // Para hacerlo simple, usaremos lo que guardamos en Login, 
-    // pero lo ideal sería hacer un fetch('/api/user')
     const savedName = localStorage.getItem('user_name');
-    // Como el email no lo guardamos en localStorage, lo dejamos en blanco o 
-    // idealmente haríamos una petición GET /api/user.
-    // Para esta versión rápida, solo pre-llenamos el nombre.
-    setFormData(prev => ({ ...prev, name: savedName || '' }));
+    if (savedName) setName(savedName);
+    // Aquí podrías hacer un fetch al backend para traer la imagen actual si quisieras
+    // Por ahora, empezamos sin previsualizar la vieja hasta que la cambien.
   }, []);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -35,31 +35,43 @@ function Profile() {
     setError(null);
 
     const token = localStorage.getItem('auth_token');
+    const data = new FormData();
+    
+    // Truco para enviar archivos en PUT
+    data.append('_method', 'PUT');
+    data.append('name', name);
+    data.append('email', email);
+    
+    if (password) {
+        data.append('password', password);
+        data.append('password_confirmation', passwordConfirm);
+    }
+    
+    if (imageFile) {
+        data.append('image', imageFile);
+    }
 
     try {
         const response = await fetch('http://127.0.0.1:8000/api/profile', {
-            method: 'PUT',
+            method: 'POST', // Usamos POST con _method: PUT
             headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(formData)
+            body: data
         });
 
-        const data = await response.json();
+        const result = await response.json();
 
         if (response.ok) {
-            setMessage("¡Datos actualizados con éxito!");
-            // Actualizamos el nombre en el navegador para que el menú de arriba cambie
-            localStorage.setItem('user_name', data.user.name);
-            // Limpiamos los campos de contraseña
-            setFormData(prev => ({ ...prev, password: '', password_confirmation: '' }));
+            setMessage("¡Perfil actualizado! 📸");
+            localStorage.setItem('user_name', result.user.name);
+            // Guardamos la foto en el navegador por si la queremos usar en el Navbar
+            localStorage.setItem('user_image', result.user.image);
             
-            // Truco: Recargamos la página después de 1 segundo para ver el nombre nuevo arriba
             setTimeout(() => window.location.reload(), 1500);
         } else {
-            setError(data.message || "Error al actualizar");
+            setError(result.message || "Error al actualizar");
         }
     } catch (err) {
         console.error(err);
@@ -70,47 +82,45 @@ function Profile() {
   return (
     <div className="container mt-5">
         <div className="card shadow p-4" style={{ maxWidth: '500px', margin: '0 auto' }}>
-            <h2 className="text-center mb-4">👤 Mi Perfil</h2>
+            <h2 className="text-center mb-4">👤 Editar Perfil</h2>
 
             {message && <div className="alert alert-success">{message}</div>}
             {error && <div className="alert alert-danger">{error}</div>}
 
             <form onSubmit={handleSubmit}>
+                {/* FOTO DE PERFIL */}
+                <div className="mb-4 text-center">
+                    <div style={{ width: '100px', height: '100px', margin: '0 auto', borderRadius: '50%', overflow: 'hidden', background: '#f0f0f0', border: '2px solid #ddd' }}>
+                        {previewUrl ? (
+                            <img src={previewUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                            <span style={{ lineHeight: '100px', fontSize: '40px' }}>👤</span>
+                        )}
+                    </div>
+                    <label className="btn btn-sm btn-outline-primary mt-2">
+                        Cambiar Foto
+                        <input type="file" hidden accept="image/*" onChange={handleImageChange} />
+                    </label>
+                </div>
+
                 <div className="mb-3">
                     <label className="form-label">Nombre</label>
-                    <input 
-                        type="text" name="name" className="form-control" 
-                        value={formData.name} onChange={handleChange} required 
-                    />
+                    <input type="text" className="form-control" value={name} onChange={e => setName(e.target.value)} required />
                 </div>
 
                 <div className="mb-3">
                     <label className="form-label">Email</label>
-                    <input 
-                        type="email" name="email" className="form-control" 
-                        placeholder="nuevo@email.com"
-                        value={formData.email} onChange={handleChange} required 
-                    />
-                    <small className="text-muted">Confirma tu email actual o pon uno nuevo.</small>
+                    <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required placeholder="Confirma tu email..." />
                 </div>
 
-                <hr className="my-4"/>
-                <h5 className="text-muted mb-3">Cambiar Contraseña (Opcional)</h5>
-
+                <hr />
                 <div className="mb-3">
-                    <label className="form-label">Nueva Contraseña</label>
-                    <input 
-                        type="password" name="password" className="form-control" 
-                        value={formData.password} onChange={handleChange}
-                    />
+                    <label className="form-label">Nueva Contraseña (Opcional)</label>
+                    <input type="password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
-
                 <div className="mb-3">
-                    <label className="form-label">Confirmar Nueva Contraseña</label>
-                    <input 
-                        type="password" name="password_confirmation" className="form-control" 
-                        value={formData.password_confirmation} onChange={handleChange}
-                    />
+                    <label className="form-label">Confirmar Contraseña</label>
+                    <input type="password" className="form-control" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} />
                 </div>
 
                 <button type="submit" className="btn btn-primary w-100">Guardar Cambios</button>

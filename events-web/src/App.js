@@ -1,8 +1,11 @@
 import { Routes, Route } from 'react-router-dom'; 
-import Navbar from './components/Navbar'; 
-import './App.css';
 
-// Importamos las páginas desde sus archivos
+// --- COMPONENTES DE DISEÑO (LAYOUT) ---
+import Navbar from './components/Navbar'; 
+import Footer from './components/Footer'; // Importamos el nuevo pie de página
+import './App.css'; // Estilos globales (fuentes, colores, etc.)
+
+// --- PÁGINAS (VISTAS) ---
 import Home from './pages/Home'; 
 import CreateEvent from './pages/CreateEvent';
 import EventDetail from './pages/EventDetail'; 
@@ -12,26 +15,37 @@ import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 
-// --- Componente Principal App ---
+// --- COMPONENTE PRINCIPAL APP ---
 function App() {
   return (
-    <div>
-      {/* NAVBAR COMÚN PARA TODAS LAS PÁGINAS */}
+    // Usamos un fragmento o div contenedor. 
+    // Gracias al CSS en #root, esto ocupará toda la altura.
+    <>
+      {/* 1. BARRA DE NAVEGACIÓN SUPERIOR (Siempre visible) */}
       <Navbar />
 
-      <div className="container mt-4">
+      {/* 2. CONTENIDO PRINCIPAL (Cuerpo de la página) */}
+      {/* La clase 'main-content' hace que este bloque crezca para empujar el footer abajo */}
+      <div className="main-content container mt-4 mb-5">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/event/:id" element={<EventDetail />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/create-event" element={<CreateEvent />} />
-          <Route path="/event/edit/:id" element={<EditEvent />} />
-          <Route path="/dashboard" element={<Dashboard />} /> 
-          <Route path="/register" element={<Register />} />
-          <Route path="/profile" element={<Profile />} />
+          {/* RUTAS PÚBLICAS */}
+          <Route path="/" element={<Home />} />               {/* Página de Inicio */}
+          <Route path="/event/:id" element={<EventDetail />} /> {/* Detalle de un evento */}
+          <Route path="/login" element={<Login />} />         {/* Formulario de acceso */}
+          <Route path="/register" element={<Register />} />   {/* Formulario de registro */}
+
+          {/* RUTAS PRIVADAS (Requieren estar logueado) */}
+          {/* En una app real, aquí usaríamos un componente <ProtectedRoute> */}
+          <Route path="/dashboard" element={<Dashboard />} />       {/* Panel de control */}
+          <Route path="/profile" element={<Profile />} />           {/* Perfil de usuario */}
+          <Route path="/create-event" element={<CreateEvent />} />  {/* Crear nuevo evento */}
+          <Route path="/event/edit/:id" element={<EditEvent />} />  {/* Editar evento existente */}
         </Routes>
       </div>
-    </div>
+
+      {/* 3. PIE DE PÁGINA (Siempre al final) */}
+      <Footer />
+    </>
   );
 }
 

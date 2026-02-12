@@ -253,24 +253,37 @@ function EventDetail() {
 
                     <div className="list-group list-group-flush">
                         {event.comments && event.comments.map(comment => (
-                            <div key={comment.id} className="list-group-item bg-transparent d-flex justify-content-between align-items-start">
-                                <div>
-                                    <strong className="text-primary">{comment.user ? comment.user.name : 'Usuario'}</strong>
-                                    <span className="text-muted small ms-2">
-                                        - {new Date(comment.created_at).toLocaleDateString()}
+                            <div key={comment.id} className="list-group-item bg-transparent d-flex align-items-start gap-3">
+                                {/* --- AVATAR DEL USUARIO --- */}
+                                <img 
+                                    src={comment.user.image || "https://ui-avatars.com/api/?name=" + comment.user.name + "&background=random"} 
+                                    alt="Avatar" 
+                                    className="rounded-circle"
+                                    style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                                />
+                                
+                                {/* --- CONTENIDO --- */}
+                                <div className="flex-grow-1">
+                                    <div className="d-flex justify-content-between">
+                                        <strong className="text-primary">{comment.user ? comment.user.name : 'Usuario'}</strong>
+                                        
+                                        {/* Botón de borrar (Solo si es mío) */}
+                                        {token && comment.user_id === currentUserId && (
+                                            <button 
+                                                onClick={() => handleCommentDelete(comment.id)} 
+                                                className="btn btn-sm text-danger border-0 p-0"
+                                                title="Borrar comentario"
+                                            >
+                                                &times;
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    <span className="text-muted small d-block mb-1">
+                                        {new Date(comment.created_at).toLocaleDateString()}
                                     </span>
-                                    <p className="mb-0 mt-1">{comment.content}</p>
+                                    <p className="mb-0">{comment.content}</p>
                                 </div>
-                                {/* CONDICIÓN: Estar logueado Y ser el dueño del comentario */}
-                                {token && comment.user_id === currentUserId && (
-                                    <button 
-                                        onClick={() => handleCommentDelete(comment.id)} 
-                                        className="btn btn-sm btn-outline-danger border-0"
-                                        title="Borrar comentario"
-                                    >
-                                        &times;
-                                    </button>
-                                )}
                             </div>
                         ))}
                     </div>

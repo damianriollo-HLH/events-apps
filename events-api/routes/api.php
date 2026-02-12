@@ -1,5 +1,6 @@
 <?php
 //En api.php le decimos a Laravel que acepte peticiones//
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\EventController;
@@ -8,6 +9,10 @@ use App\Http\Controllers\Api\AuthController;
 // --- Rutas de Autenticación Públicas ---
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+// Ruta pública para obtener categorías
+Route::get('/categories', function () {
+    return Category::all();
+});
 
 // --- Rutas Protegidas (Requieren Token) ---
 Route::middleware('auth:sanctum')->group(function () {

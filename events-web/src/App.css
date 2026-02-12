@@ -1,38 +1,48 @@
-.App {
-  text-align: center;
-}
+/* 1. IMPORTAR FUENTE MODERNA */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
+/* 2. BASE */
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: #f4f6f9; /* Gris azulado muy suave */
+  color: #333;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
 }
 
-.App-link {
-  color: #61dafb;
+/* 3. ESTILOS DE TARJETAS (Efecto flotante) */
+.card {
+  border: none !important; /* Quitamos bordes feos */
+  border-radius: 15px !important; /* Bordes redondeados */
+  transition: all 0.3s ease; /* Animación suave */
+  background: white;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.hover-effect:hover {
+  transform: translateY(-5px); /* Se mueve hacia arriba */
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; /* Sombra elegante */
+}
+
+/* 4. BOTONES MODERNOS */
+.btn {
+  border-radius: 50px !important; /* Botones redondos tipo pastilla */
+  padding: 8px 20px !important;
+  font-weight: 600 !important;
+}
+
+/* 5. TITULOS */
+h1, h2, h3, h4, h5 {
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+/* Para que el footer se quede abajo siempre */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.main-content {
+  flex: 1;
 }
