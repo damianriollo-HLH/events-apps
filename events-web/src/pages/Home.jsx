@@ -6,17 +6,26 @@ function Home() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  // --- ESTADOS DE FILTROS ---
+  const [filters, setFilters] = useState({
+    search: '',
+    category: null,
+    date: 'any',      // any, today, tomorrow, week
+    sort: 'newest'    // newest, price_asc, price_desc
+  });
 
-  // --- CARGA DE DATOS ---
-  const fetchEvents = (search = '', categoryId = null) => {
+  // Función maestra de carga
+  const fetchEvents = () => {
     setLoading(true);
-    let url = 'http://127.0.0.1:8000/api/events?';
-    if (search) url += `search=${search}&`;
-    if (categoryId) url += `category=${categoryId}`;
+    
+    // Convertimos el objeto filters en parámetros de URL
+    const params = new URLSearchParams();
+    if (filters.search) params.append('search', filters.search);
+    if (filters.category) params.append('category', filters.category);
+    if (filters.date !== 'any') params.append('date', filters.date);
+    params.append('sort', filters.sort);
 
-    fetch(url)
+    fetch(`http://127.0.0.1:8000/api/events?${params.toString()}`)
       .then(res => res.json())
       .then(data => {
         setEvents(data);
@@ -25,167 +34,195 @@ function Home() {
       .catch(err => setLoading(false));
   };
 
+  // Cargar categorías al inicio
   useEffect(() => {
-    fetchEvents();
     fetch('http://127.0.0.1:8000/api/categories')
         .then(res => res.json())
         .then(data => setCategories(data));
   }, []);
 
-  // --- HANDLERS ---
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setSelectedCategory(null);
-    fetchEvents(searchTerm, null);
+  // Recargar eventos cada vez que cambie un filtro
+  useEffect(() => {
+    fetchEvents();
+  }, [filters]); // <--- El truco: Si 'filters' cambia, se ejecuta esto.
+
+  // Helper para actualizar filtros
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleCategoryClick = (id) => {
-    if (selectedCategory === id) {
-        setSelectedCategory(null);
-        fetchEvents(searchTerm, null);
-    } else {
-        setSelectedCategory(id);
-        fetchEvents(searchTerm, id);
-    }
-  };
-
-  // --- LÓGICA DE VISUALIZACIÓN ---
-  // Sepamos el primer evento (Destacado) del resto
-  const featuredEvent = events.length > 0 ? events[0] : null;
-  const otherEvents = events.length > 0 ? events.slice(1) : [];
+  // Separar destacado (solo si no estamos filtrando mucho)
+  const showFeatured = !filters.search && !filters.category && filters.date === 'any';
+  const featuredEvent = (showFeatured && events.length > 0) ? events[0] : null;
+  const displayEvents = featuredEvent ? events.slice(1) : events;
 
   return (
-    <div className="container-fluid p-0"> {/* Fluid para que el banner toque los bordes */}
+    <div className="container-fluid p-0">
       
-      {/* ================================================= */}
-      {/* SECTOR 1: HERO SECTION (EVENTO DESTACADO)         */}
-      {/* ================================================= */}
-      {!loading && featuredEvent && !searchTerm && !selectedCategory && (
+      {/* 1. HERO SECTION (Igual que antes) */}
+      {featuredEvent && (
         <div 
             className="position-relative text-white mb-5 shadow"
             style={{
-                backgroundImage: `url(${featuredEvent.image || 'https://placehold.co/1200x600?text=Evento'})`,
+                backgroundImage: `url(${featuredEvent.image || 'https://placehold.co/1200x600'})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                height: '500px', // Altura del banner
+                height: '400px',
                 display: 'flex',
-                alignItems: 'flex-end' // Texto abajo
+                alignItems: 'flex-end'
             }}
         >
-            {/* Capa oscura para que se lea el texto */}
-            <div 
-                className="w-100 p-5" 
-                style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}
-            >
+            <div className="w-100 p-4" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
                 <div className="container">
-                    <span className="badge bg-warning text-dark mb-2">🔥 Evento Destacado</span>
-                    <h1 className="display-3 fw-bold">{featuredEvent.title}</h1>
-                    <p className="lead d-none d-md-block" style={{maxWidth: '600px'}}>
-                        {featuredEvent.description.substring(0, 150)}...
-                    </p>
-                    <div className="d-flex gap-3 mt-3">
-                        <Link to={`/event/${featuredEvent.id}`} className="btn btn-light btn-lg fw-bold px-4">
-                            Ver Detalles
-                        </Link>
-                        <span className="text-white align-self-center fs-5">
-                            📅 {new Date(featuredEvent.start_at).toLocaleDateString()}
-                        </span>
-                    </div>
+                    <span className="badge bg-warning text-dark mb-2">🔥 Destacado</span>
+                    <h1 className="fw-bold">{featuredEvent.title}</h1>
+                    <Link to={`/event/${featuredEvent.id}`} className="btn btn-light mt-2">Ver Evento</Link>
                 </div>
             </div>
         </div>
       )}
 
-      {/* ================================================= */}
-      {/* SECTOR 2: BARRA DE CONTROL (BUSCADOR Y FILTROS)   */}
-      {/* ================================================= */}
       <div className="container my-5">
-        <div className="text-center mb-5">
-            {!featuredEvent && <h1 className="fw-bold">Próximos Eventos</h1>}
-            <p className="text-muted">Encuentra lo que te apasiona</p>
+        <div className="row">
+            
+            {/* ========================================= */}
+            {/* 2. SIDEBAR (MENÚ LATERAL DE FILTROS)      */}
+            {/* ========================================= */}
+            <div className="col-md-3 mb-4">
+                <div className="card border-0 shadow-sm p-3 sticky-top" style={{top: '20px', zIndex: 1}}>
+                    <h5 className="fw-bold mb-3">🔍 Filtrar Eventos</h5>
+                    
+                    {/* A. BUSCADOR TEXTO */}
+                    <div className="mb-4">
+                        <label className="form-label small fw-bold text-muted">PALABRA CLAVE</label>
+                        <input 
+                            type="text" 
+                            className="form-control form-control-sm" 
+                            placeholder="Concierto, Madrid..." 
+                            value={filters.search}
+                            onChange={(e) => handleFilterChange('search', e.target.value)}
+                        />
+                    </div>
 
-            {/* Buscador */}
-            <form onSubmit={handleSearch} className="d-flex justify-content-center mt-3">
-                <div className="input-group shadow-sm" style={{ maxWidth: '600px' }}>
-                    <input 
-                        type="text" className="form-control border-0" 
-                        placeholder="Buscar concierto, taller..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <button className="btn btn-primary px-4" type="submit">🔍</button>
-                </div>
-            </form>
-
-            {/* Categorías (Pildoras) */}
-            <div className="d-flex flex-wrap justify-content-center gap-2 mt-4">
-                <button 
-                    className={`btn btn-sm rounded-pill px-3 ${selectedCategory === null ? 'btn-dark' : 'btn-outline-secondary'}`}
-                    onClick={() => handleCategoryClick(null)}
-                >
-                    Todas
-                </button>
-                {categories.map(cat => (
-                    <button 
-                        key={cat.id}
-                        className={`btn btn-sm rounded-pill px-3 ${selectedCategory === cat.id ? 'btn-primary' : 'btn-outline-secondary'}`}
-                        onClick={() => handleCategoryClick(cat.id)}
-                    >
-                        {cat.name}
-                    </button>
-                ))}
-            </div>
-        </div>
-
-        {/* ================================================= */}
-        {/* SECTOR 3: LA GALERÍA (EL RESTO DE EVENTOS)        */}
-        {/* ================================================= */}
-        {loading ? (
-            <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
-        ) : (
-            <div className="row g-4">
-                {/* TRUCO: Si estamos filtrando o buscando, mostramos TODOS los resultados.
-                    Si es la vista inicial normal, mostramos 'otherEvents' (porque el 1º ya salió arriba).
-                */}
-                {(searchTerm || selectedCategory ? events : otherEvents).map(event => (
-                    <div key={event.id} className="col-md-4 col-lg-3"> {/* 4 columnas en pantallas grandes */}
-                        <div className="card h-100 border-0 shadow-sm hover-effect">
-                            <div className="position-relative">
-                                <img 
-                                    src={event.image || "https://placehold.co/400x300"} 
-                                    className="card-img-top rounded-top" 
-                                    alt={event.title}
-                                    style={{ height: '180px', objectFit: 'cover' }}
-                                />
-                                <span className="position-absolute top-0 end-0 m-2 badge bg-white text-dark shadow-sm">
-                                    ${event.price}
-                                </span>
-                            </div>
-                            
-                            <div className="card-body">
-                                <small className="text-primary fw-bold text-uppercase" style={{fontSize: '0.75rem'}}>
-                                    {event.category?.name || 'Evento'}
-                                </small>
-                                <h6 className="card-title fw-bold mt-1 mb-2 text-truncate">{event.title}</h6>
-                                <p className="text-muted small mb-3">
-                                    📅 {new Date(event.start_at).toLocaleDateString()}
-                                </p>
-                                <Link to={`/event/${event.id}`} className="btn btn-outline-dark btn-sm w-100 rounded-pill">
-                                    Ver Ticket
-                                </Link>
-                            </div>
+                    {/* B. FECHA */}
+                    <div className="mb-4">
+                        <label className="form-label small fw-bold text-muted">FECHA</label>
+                        <div className="form-check">
+                            <input className="form-check-input" type="radio" name="date" 
+                                checked={filters.date === 'any'} onChange={() => handleFilterChange('date', 'any')} />
+                            <label className="form-check-label">Cualquier fecha</label>
+                        </div>
+                        <div className="form-check">
+                            <input className="form-check-input" type="radio" name="date" 
+                                checked={filters.date === 'today'} onChange={() => handleFilterChange('date', 'today')} />
+                            <label className="form-check-label">Hoy</label>
+                        </div>
+                        <div className="form-check">
+                            <input className="form-check-input" type="radio" name="date" 
+                                checked={filters.date === 'tomorrow'} onChange={() => handleFilterChange('date', 'tomorrow')} />
+                            <label className="form-check-label">Mañana</label>
+                        </div>
+                        <div className="form-check">
+                            <input className="form-check-input" type="radio" name="date" 
+                                checked={filters.date === 'week'} onChange={() => handleFilterChange('date', 'week')} />
+                            <label className="form-check-label">Esta semana</label>
                         </div>
                     </div>
-                ))}
 
-                {events.length === 0 && (
-                    <div className="col-12 text-center py-5">
-                        <h3>😕 No hay resultados</h3>
-                        <p className="text-muted">Intenta cambiar los filtros.</p>
+                    {/* C. CATEGORÍAS */}
+                    <div className="mb-4">
+                        <label className="form-label small fw-bold text-muted">CATEGORÍA</label>
+                        <select 
+                            className="form-select form-select-sm" 
+                            value={filters.category || ''}
+                            onChange={(e) => handleFilterChange('category', e.target.value || null)}
+                        >
+                            <option value="">Todas las categorías</option>
+                            {categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* D. ORDENAR POR */}
+                    <div className="mb-3">
+                        <label className="form-label small fw-bold text-muted">ORDENAR POR</label>
+                        <select 
+                            className="form-select form-select-sm" 
+                            value={filters.sort}
+                            onChange={(e) => handleFilterChange('sort', e.target.value)}
+                        >
+                            <option value="newest">Más recientes</option>
+                            <option value="oldest">Más antiguos</option>
+                            <option value="price_asc">Precio: Bajo a Alto</option>
+                            <option value="price_desc">Precio: Alto a Bajo</option>
+                        </select>
+                    </div>
+
+                    {/* E. LIMPIAR */}
+                    <button 
+                        className="btn btn-outline-danger btn-sm w-100 mt-2"
+                        onClick={() => setFilters({search: '', category: null, date: 'any', sort: 'newest'})}
+                    >
+                        🗑 Limpiar Filtros
+                    </button>
+                </div>
+            </div>
+
+            {/* ========================================= */}
+            {/* 3. GALERÍA DE RESULTADOS (DERECHA)        */}
+            {/* ========================================= */}
+            <div className="col-md-9">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h4 className="fw-bold">Resultados ({displayEvents.length})</h4>
+                </div>
+
+                {loading ? (
+                    <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
+                ) : (
+                    <div className="row g-3">
+                        {displayEvents.length > 0 ? (
+                            displayEvents.map(event => (
+                                <div key={event.id} className="col-md-4 col-lg-4">
+                                    <div className="card h-100 border-0 shadow-sm hover-effect">
+                                        <div className="position-relative">
+                                            <img 
+                                                src={event.image || "https://placehold.co/400x300"} 
+                                                className="card-img-top" 
+                                                alt={event.title}
+                                                style={{ height: '160px', objectFit: 'cover' }}
+                                            />
+                                            <span className="position-absolute top-0 end-0 m-2 badge bg-white text-dark shadow-sm">
+                                                ${event.price}
+                                            </span>
+                                        </div>
+                                        <div className="card-body">
+                                            <small className="text-info fw-bold">{event.category?.name}</small>
+                                            <h6 className="fw-bold mt-1 text-truncate">{event.title}</h6>
+                                            <p className="text-muted small mb-0">
+                                                📅 {new Date(event.start_at).toLocaleDateString()}
+                                            </p>
+                                            <p className="text-muted small">
+                                                📍 {event.location || 'Online'}
+                                            </p>
+                                            <Link to={`/event/${event.id}`} className="btn btn-outline-primary btn-sm w-100 mt-2 rounded-pill">
+                                                Ver Detalles
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="col-12 text-center py-5 bg-light rounded">
+                                <h3>🧐 No encontramos nada</h3>
+                                <p>Intenta cambiar los filtros del menú lateral.</p>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
-        )}
+
+        </div>
       </div>
     </div>
   );

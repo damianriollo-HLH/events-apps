@@ -90,7 +90,7 @@ function Dashboard() {
                     ) : (
                         <div className="d-flex flex-column gap-3">
                             {enrollments.map(event => (
-                                <div key={event.id} className="card border-0 shadow-sm p-3 hover-effect" style={{backgroundColor: '#f8f9fa'}}>
+                                <div key={event.id} className="card border-0 shadow-sm p-3 hover-effect mb-3">
                                     <div className="d-flex align-items-center gap-3">
                                         {/* Fecha Calendario */}
                                         <div className="text-center bg-white p-2 rounded shadow-sm" style={{minWidth: '60px'}}>
@@ -105,11 +105,19 @@ function Dashboard() {
                                         {/* Info */}
                                         <div className="flex-grow-1">
                                             <h6 className="fw-bold mb-1">{event.title}</h6>
-                                            <small className="text-muted">📍 {event.location || 'Online'}</small>
+                                            <div className="d-flex align-items-center gap-2">
+                                                <small className="text-muted">📍 {event.location || 'Online'}</small>
+                                                
+                                                {/* --- AQUÍ MOSTRAMOS LA CANTIDAD --- */}
+                                                {/* Usamos event.pivot.quantity si existe, si no 1 */}
+                                                <span className="badge bg-primary rounded-pill">
+                                                    🎟 {event.pivot ? event.pivot.quantity : 1} Entradas
+                                                </span>
+                                            </div>
                                         </div>
                                         
                                         {/* Botón */}
-                                        <Link to={`/event/${event.id}`} className="btn btn-sm btn-light text-primary">
+                                        <Link to={`/event/${event.id}`} className="btn btn-sm text-primary fw-bold">
                                             Ver ➔
                                         </Link>
                                     </div>

@@ -8,39 +8,62 @@ use Illuminate\Http\Request;
 
 class EventController extends Controller
 {
-    // GET /api/events (Público - Con Buscador)
+    // GET /api/events (Público - Con Buscador Avanzado)
     public function index(Request $request)
     {
-        // Iniciamos la consulta base (aún no pedimos los datos con get)
         $query = Event::with(['category', 'user'])
             ->where('status', 'published');
 
-        // ¿Hay algo en la caja de búsqueda?
+        // 1. FILTRO DE TEXTO (Título, Descripción O CIUDAD)
         if ($request->has('search')) {
             $searchTerm = $request->input('search');
-            
-            // Filtramos: Que el título O la descripción contengan el texto
             $query->where(function($q) use ($searchTerm) {
                 $q->where('title', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+                  ->orWhere('description', 'LIKE', "%{$searchTerm}%")
+                  // IMPORTANTE: Esto fallará si no tienes la columna 'location' en la BD
+                  ->orWhere('location', 'LIKE', "%{$searchTerm}%"); 
             });
         }
-        //FILTRO POR CATEGORÍA (¡NUEVO!)
-        if ($request->has('category')) {
-            $categoryId = $request->input('category');
-            $query->where('category_id', $categoryId);
+
+        // 2. FILTRO POR CATEGORÍA
+        if ($request->has('category') && $request->category != 'null') {
+            $query->where('category_id', $request->input('category'));
         }
 
-        // Ordenamos y entregamos los resultados
-        $events = $query->orderBy('start_at', 'asc')->get();
+        // 3. FILTRO POR FECHA
+        if ($request->has('date')) {
+            $dateFilter = $request->input('date');
+            $today = now()->format('Y-m-d');
 
-        return response()->json($events);
+            switch ($dateFilter) {
+                case 'today':
+                    $query->whereDate('start_at', $today);
+                    break;
+                case 'tomorrow':
+                    $query->whereDate('start_at', now()->addDay()->format('Y-m-d'));
+                    break;
+                case 'week':
+                    $query->whereBetween('start_at', [$today, now()->addDays(7)->format('Y-m-d')]);
+                    break;
+            }
+        }
+
+        // 4. ORDENAMIENTO
+        $sort = $request->input('sort', 'newest');
+        
+        switch ($sort) {
+            case 'price_asc': $query->orderBy('price', 'asc'); break;
+            case 'price_desc': $query->orderBy('price', 'desc'); break;
+            case 'oldest': $query->orderBy('start_at', 'asc'); break;
+            case 'newest': default: $query->orderBy('created_at', 'desc'); break;
+        }
+
+        return response()->json($query->get());
     }
 
-// POST /api/events (Privado - Crear Evento con Imagen)
+    // POST /api/events (Privado - Crear Evento)
     public function store(Request $request)
     {
-        // 1. Validamos los datos (Añadimos 'image' como opcional pero que sea imagen)
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -48,23 +71,16 @@ class EventController extends Controller
             'price' => 'required|numeric',
             'category_id' => 'required|exists:categories,id',
             'capacity' => 'nullable|integer|min:1',
-            'image' => 'nullable|image|max:2048' // Máximo 2MB, debe ser jpg, png, etc.
+            'image' => 'nullable|image|max:2048',
+            'location' => 'nullable|string|max:255' // <--- Aceptamos ubicación
         ]);
 
-        // 2. Manejo de la IMAGEN
-        $imageUrl = null; // Por defecto null
-
+        $imageUrl = null;
         if ($request->hasFile('image')) {
-            // Guardamos la imagen en la carpeta 'public/events'
-            // Laravel nos devuelve la ruta interna (ej: events/foto.jpg)
             $path = $request->file('image')->store('events', 'public');
-            
-            // Convertimos esa ruta en una URL pública completa
-            // Ej: http://localhost:8000/storage/events/foto.jpg
             $imageUrl = asset('storage/' . $path);
         }
 
-        // 3. Crear el evento
         $event = $request->user()->events()->create([
             'title' => $validated['title'],
             'description' => $validated['description'],
@@ -73,64 +89,53 @@ class EventController extends Controller
             'price' => $validated['price'],
             'category_id' => $validated['category_id'],
             'capacity' => $validated['capacity'] ?? 50,
-            'image' => $imageUrl, // <--- Aquí guardamos la URL
+            'image' => $imageUrl,
+            'location' => $validated['location'] ?? 'Online', // <--- Guardamos ubicación
             'status' => 'published'
         ]);
 
         return response()->json($event, 201);
     }
 
-    // GET /api/events/{id} (Público - Ver Detalle)
+    // GET /api/events/{id} (Público - Detalle)
     public function show($id)
     {
-        // 1. Buscamos el evento
         $event = Event::with(['category', 'user', 'enrollments', 'comments.user'])
             ->withAvg('ratings', 'stars')
             ->findOrFail($id);
             
-        // 2. Valores iniciales
         $user = request()->user('sanctum');
         $userRating = 0;
         $isEnrolled = false;
-        $canEdit = false; // <--- NUEVO: Por defecto nadie puede editar
+        $canEdit = false;
 
         if ($user) {
-            // A. Valoración
             $existingRating = $event->ratings()->where('user_id', $user->id)->first();
             if ($existingRating) $userRating = $existingRating->stars;
             
-            // B. Inscripción
             $isEnrolled = $event->enrollments()->where('user_id', $user->id)->exists();
 
-            // C. PERMISOS (Aquí está la magia)
-            // Puede editar si: Es el dueño (user_id coinciden) O es admin
             if ($user->id === $event->user_id || $user->role === 'admin') {
                 $canEdit = true;
             }
         }
 
-        // 3. Añadimos datos extra al JSON
         $event->user_rating = $userRating;
         $event->is_enrolled = $isEnrolled;
-        $event->can_edit = $canEdit; // <--- Enviamos el permiso al Frontend
+        $event->can_edit = $canEdit;
 
         return response()->json($event);
     }
 
-    // PUT /api/events/{id} (Privado - Editar Evento con Imagen)
+    // PUT /api/events/{id} (Privado - Editar)
     public function update(Request $request, $id)
     {
         $event = Event::findOrFail($id);
 
-        // --- SEGURIDAD ---
-        $isOwner = $event->user_id === $request->user()->id;
-        $isAdmin = $request->user()->role === 'admin';
-
-        if (!$isOwner && !$isAdmin) {
+        if ($event->user_id !== $request->user()->id && $request->user()->role !== 'admin') {
             return response()->json(['message' => 'No tienes permiso'], 403);
         }
 
-        // 1. Validamos (todo nullable porque quizás solo quieras cambiar la foto)
         $validated = $request->validate([
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
@@ -138,10 +143,10 @@ class EventController extends Controller
             'price' => 'nullable|numeric',
             'category_id' => 'nullable|exists:categories,id',
             'capacity' => 'nullable|integer|min:1',
-            'image' => 'nullable|image|max:2048' // Validación de imagen
+            'image' => 'nullable|image|max:2048',
+            'location' => 'nullable|string|max:255'
         ]);
 
-        // 2. Preparar los datos a actualizar
         $dataToUpdate = [
             'title' => $validated['title'] ?? $event->title,
             'description' => $validated['description'] ?? $event->description,
@@ -150,52 +155,88 @@ class EventController extends Controller
             'price' => $validated['price'] ?? $event->price,
             'category_id' => $validated['category_id'] ?? $event->category_id,
             'capacity' => $validated['capacity'] ?? $event->capacity,
+            'location' => $validated['location'] ?? $event->location,
         ];
 
-        // 3. ¿Han subido una IMAGEN NUEVA?
         if ($request->hasFile('image')) {
-            // Guardamos la nueva
             $path = $request->file('image')->store('events', 'public');
             $dataToUpdate['image'] = asset('storage/' . $path);
         }
 
-        // 4. Guardamos cambios
         $event->update($dataToUpdate);
 
         return response()->json(['message' => 'Evento actualizado', 'event' => $event]);
     }
 
-    // DELETE /api/events/{id} (Privado - Borrar Evento)
+    // POST /api/events/{id}/enroll (Privado - Comprar Entradas)
+    // ¡¡ESTA ES LA QUE TE FALTABA!!
+    public function enroll(Request $request, $id)
+    {
+        $event = Event::findOrFail($id);
+        $user = $request->user();
+
+        $request->validate(['quantity' => 'required|integer|min:1|max:10']);
+        $quantity = $request->input('quantity');
+
+        if ($event->capacity < $quantity) {
+            return response()->json(['message' => 'Solo quedan ' . $event->capacity . ' entradas.'], 400);
+        }
+
+        $existing = $event->users()->where('user_id', $user->id)->first();
+        if ($existing) {
+            return response()->json(['message' => 'Ya tienes entradas para este evento.'], 400);
+        }
+
+        $event->decrement('capacity', $quantity);
+        $event->users()->attach($user->id, [
+            'quantity' => $quantity, 
+            'created_at' => now(), 
+            'updated_at' => now()
+        ]);
+
+        return response()->json([
+            'message' => "¡Has conseguido {$quantity} entradas con éxito!",
+            'remaining_capacity' => $event->capacity
+        ]);
+    }
+
+    // GET /api/my-enrollments (Eventos a los que voy)
+    public function myEnrollments()
+    {
+        $user = auth('sanctum')->user();
+        
+        // Usamos el modelo User para acceder a los eventos via la relación 'events()'
+        // Ojo: Asegúrate de tener la relación inversa en User.php si usas esto.
+        // PERO para no liarte, vamos a modificar tu query actual para incluir el PIVOT:
+        
+        $events = $user->eventsAttending()->with('category')->get();
+        // Nota: Para que esto funcione bien, necesitamos definir eventsAttending en User.php
+        // O mejor, mantengamos tu lógica pero accediendo al dato pivot.
+        
+        // LA FORMA MÁS FÁCIL SIN TOCAR MUCHO:
+        // Laravel devuelve el campo 'pivot' automáticamente si lo pusimos en el modelo.
+        // Simplemente nos aseguramos de usar la relación correcta.
+        
+        // Vamos a cambiar esta función por esta versión más limpia:
+        return response()->json($user->eventsAttending()->with(['category', 'user'])->get());
+    }
+
+    // GET /api/my-events (Eventos que yo organicé)
+    public function myCreatedEvents()
+    {
+        $user = auth('sanctum')->user();
+        $events = Event::where('user_id', $user->id)->with('category')->get();
+        return response()->json($events);
+    }
+    
+    // DELETE /api/events/{id}
     public function destroy(Request $request, $id)
     {
         $event = Event::findOrFail($id);
-        
-        // --- SEGURIDAD ---
-        $isOwner = $event->user_id === $request->user()->id;
-        $isAdmin = $request->user()->role === 'admin';
-
-        if (!$isOwner && !$isAdmin) {
-            return response()->json(['message' => 'No tienes permiso para eliminar este evento'], 403);
+        if ($event->user_id !== $request->user()->id && $request->user()->role !== 'admin') {
+            return response()->json(['message' => 'No permiso'], 403);
         }
-        
-        // Borramos el evento (y sus comentarios/inscripciones por cascada)
         $event->delete();
-
-        return response()->json(['message' => 'Evento eliminado correctamente']);
-    }
-
-    // GET /api/my-events (Privado - Mis Entradas)
-    public function myEvents()
-    {
-        $user = auth('sanctum')->user();
-
-        // TRADUCCIÓN: "Dame los eventos DONDE TENGA (whereHas) inscripciones de ESTE usuario"
-        $events = Event::whereHas('enrollments', function($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })
-        ->with(['category', 'user']) // Traemos datos extra para la tarjeta
-        ->get();
-
-        return response()->json($events);
+        return response()->json(['message' => 'Eliminado']);
     }
 }

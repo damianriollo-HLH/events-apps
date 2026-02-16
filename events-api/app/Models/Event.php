@@ -103,4 +103,13 @@ class Event extends Model
     
     // IMPORTANTE: Añade 'is_liked' y 'likes_count' al array $appends si quieres que salga siempre en el JSON
     protected $appends = ['is_liked', 'likes_count'];
+
+    // Relación Muchos a Muchos: Un evento tiene muchos usuarios inscritos
+    public function users()
+    {
+        // Añadimos ->withPivot('quantity') para poder leer la cantidad después
+        return $this->belongsToMany(User::class, 'enrollments')
+                    ->withPivot('quantity') 
+                    ->withTimestamps();
+    }
 }

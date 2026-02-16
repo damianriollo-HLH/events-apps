@@ -17,7 +17,6 @@ function EventDetail() {
 
   // Datos de sesión
   const token = localStorage.getItem('auth_token');
-  // Leemos el ID y lo convertimos a número entero para comparar bien
   const currentUserId = parseInt(localStorage.getItem('user_id'));
 
   // 1. CARGAR DATOS DEL EVENTO
@@ -37,51 +36,30 @@ function EventDetail() {
         setEvent(data);
         setLoading(false);
 
-        // Si el backend dice que ya votamos, pintamos las estrellas
         if (data.user_rating) {
             setRating(data.user_rating);
         }
         
-        // Actualizamos estado del botón de inscripción
         setIsEnrolled(data.is_enrolled);
       })
       .catch(err => console.error("Error cargando evento:", err));
   }, [id, token]);
 
 
-  // 2. FUNCIÓN PARA INSCRIBIRSE / CANCELAR
-  const handleEnroll = async () => {
-    if (!token) {
-        alert("Inicia sesión para comprar una entrada.");
-        return;
-    }
-
-    // Si ya estoy inscrito -> DELETE. Si no -> POST.
-    const method = isEnrolled ? 'DELETE' : 'POST';
+  // 2. FUNCIÓN PARA BORRAR EVENTO (Admin/Dueño)
+  const handleDeleteEvent = async () => {
+    if (!window.confirm("¿Seguro que quieres borrar este evento?")) return;
     
-    try {
-        const response = await fetch(`http://127.0.0.1:8000/api/events/${id}/enroll`, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (response.ok) {
-            if (isEnrolled) {
-                alert("Has cancelado tu inscripción.");
-                setIsEnrolled(false);
-            } else {
-                alert("¡Entrada comprada con éxito!");
-                setIsEnrolled(true);
-            }
-        } else {
-            const errorData = await response.json();
-            alert(errorData.message || "Error al procesar la solicitud");
-        }
-    } catch (error) {
-        console.error("Error:", error);
+    const res = await fetch(`http://127.0.0.1:8000/api/events/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (res.ok) {
+        alert("Evento borrado");
+        window.location.href = '/'; 
+    } else {
+        alert("No tienes permiso o hubo un error.");
     }
   };
 
@@ -130,7 +108,6 @@ function EventDetail() {
 
         if (response.ok) {
             const commentCreated = await response.json();
-            // Añadimos el nuevo comentario a la lista visualmente
             setEvent({ ...event, comments: [commentCreated, ...event.comments] });
             setNewComment(""); 
         } else {
@@ -155,22 +132,7 @@ function EventDetail() {
     } catch (error) { console.error(error); }
   };
 
-  // 6. FUNCIÓN PARA BORRAR EVENTO
-  const handleDeleteEvent = async () => {
-    if (!window.confirm("¿Seguro que quieres borrar este evento?")) return;
-    
-    const res = await fetch(`http://127.0.0.1:8000/api/events/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    if (res.ok) {
-        alert("Evento borrado");
-        window.location.href = '/'; // O navigate('/')
-    } else {
-        alert("No tienes permiso o hubo un error.");
-    }
-  };
+  // (HEMOS QUITADO handleEnroll PORQUE AHORA LA COMPRA SE HACE EN CHECKOUT)
 
   if (loading) return <div className="text-center mt-5"><div className="spinner-border text-primary"></div></div>;
   if (!event) return <div className="container mt-5">Evento no encontrado</div>;
@@ -220,8 +182,7 @@ function EventDetail() {
                         </div>
                     </div>
 
-                    {/* --- BOTONES DE ADMIN / DUEÑO (CORREGIDO) --- */}
-                    {/* Solo se muestran si el backend dice 'can_edit' = true */}
+                    {/* --- BOTONES DE ADMIN / DUEÑO --- */}
                     {event.can_edit && (
                         <div className="mt-4 border-top pt-3">
                             <button onClick={handleDeleteEvent} className="btn btn-danger me-2">🗑 Borrar Evento</button>
@@ -254,31 +215,24 @@ function EventDetail() {
                     <div className="list-group list-group-flush">
                         {event.comments && event.comments.map(comment => (
                             <div key={comment.id} className="list-group-item bg-transparent d-flex align-items-start gap-3">
-                                {/* --- AVATAR DEL USUARIO --- */}
                                 <img 
                                     src={comment.user.image || "https://ui-avatars.com/api/?name=" + comment.user.name + "&background=random"} 
                                     alt="Avatar" 
                                     className="rounded-circle"
                                     style={{ width: '40px', height: '40px', objectFit: 'cover' }}
                                 />
-                                
-                                {/* --- CONTENIDO --- */}
                                 <div className="flex-grow-1">
                                     <div className="d-flex justify-content-between">
                                         <strong className="text-primary">{comment.user ? comment.user.name : 'Usuario'}</strong>
-                                        
-                                        {/* Botón de borrar (Solo si es mío) */}
                                         {token && comment.user_id === currentUserId && (
                                             <button 
                                                 onClick={() => handleCommentDelete(comment.id)} 
                                                 className="btn btn-sm text-danger border-0 p-0"
-                                                title="Borrar comentario"
                                             >
                                                 &times;
                                             </button>
                                         )}
                                     </div>
-                                    
                                     <span className="text-muted small d-block mb-1">
                                         {new Date(comment.created_at).toLocaleDateString()}
                                     </span>
@@ -293,20 +247,41 @@ function EventDetail() {
 
         {/* COLUMNA DERECHA: SIDEBAR */}
         <div className="col-md-4">
-            <div className="card shadow-sm p-3">
-                <h5>Detalles extra</h5>
-                <ul className="list-unstyled">
+            <div className="card shadow-sm p-4 sticky-top" style={{top: '20px'}}>
+                <h5 className="text-muted mb-1">Precio por entrada</h5>
+                <h2 className="fw-bold text-success mb-3">${event.price}</h2>
+                
+                <ul className="list-unstyled mb-4">
                     <li><strong>Categoría:</strong> {event.category ? event.category.name : 'General'}</li>
                     <li><strong>Organizador:</strong> {event.user ? event.user.name : 'Anónimo'}</li>
                 </ul>
                 
-                {/* BOTÓN DE COMPRA / CANCELACIÓN */}
-                <button 
-                    onClick={handleEnroll}
-                    className={`btn w-100 mt-2 ${isEnrolled ? "btn-danger" : "btn-success"}`}
-                >
-                    {isEnrolled ? "❌ Cancelar Inscripción" : "🎟 Comprar Entrada"}
-                </button>
+                {/* --- AQUÍ ESTÁ EL CAMBIO CLAVE --- */}
+                {isEnrolled ? (
+                    // CASO A: YA TIENE ENTRADA -> Muestra mensaje (o botón dashboard)
+                    <div className="alert alert-success text-center">
+                        <span className="d-block fs-2">✅</span>
+                        <strong>¡Ya tienes entradas!</strong>
+                        <Link to="/dashboard" className="btn btn-outline-success btn-sm w-100 mt-2">
+                            Ver mis entradas
+                        </Link>
+                    </div>
+                ) : (
+                    // CASO B: NO TIENE ENTRADA -> Botón "Comprar" que lleva al Checkout
+                    token ? (
+                        <Link to={`/checkout/${id}`} className="btn btn-success w-100 btn-lg shadow-sm">
+                            🎟 Conseguir Entradas
+                        </Link>
+                    ) : (
+                        <Link to="/login" className="btn btn-primary w-100 btn-lg shadow-sm">
+                            Iniciar Sesión para Comprar
+                        </Link>
+                    )
+                )}
+
+                <small className="text-muted d-block mt-3 text-center">
+                    🔒 Compra 100% segura
+                </small>
             </div>
         </div>
       </div>

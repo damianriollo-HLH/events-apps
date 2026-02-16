@@ -63,6 +63,12 @@ class User extends Authenticatable
         return $this->belongsToMany(Event::class, 'likes', 'user_id', 'event_id')->withTimestamps();
     }
     
+    public function eventsAttending()
+    {
+        return $this->belongsToMany(Event::class, 'enrollments')
+                    ->withPivot('quantity')
+                    ->withTimestamps();
+    }
     // Un usuario puede tener muchos comentarios
     /* (Este lo dejaremos comentado hasta que creemos el modelo Comment)
     public function comments() {
