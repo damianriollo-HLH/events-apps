@@ -19,15 +19,18 @@ class ProfileController extends Controller
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', \Illuminate\Validation\Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|min:6|confirmed',
-            'image'   => 'nullable|image|max:2048' // Validación de foto
+            'image'   => 'nullable|image|max:2048', // Validación de foto
+            'email_notifications' => 'required|boolean'
         ]);
 
         // 2. Actualizar datos básicos
         $user->name = $validated['name'];
         $user->email = $validated['email'];
+        $user->email_notifications = filter_var($validated['email_notifications'], FILTER_VALIDATE_BOOLEAN);
 
         if (!empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);
+            
         }
 
         // 3. --- GESTIÓN DE LA FOTO DE PERFIL ---

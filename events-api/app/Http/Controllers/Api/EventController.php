@@ -64,15 +64,17 @@ class EventController extends Controller
     // POST /api/events (Privado - Crear Evento)
     public function store(Request $request)
     {
+        //Validamos los datos
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'date' => 'required|date',
+            'start_at' => 'required|date', // Fecha y hora de inicio
+            'end_at' => 'nullable|date|after_or_equal:start_at', // Fecha fin (opcional, pero debe ser posterior)
             'price' => 'required|numeric',
             'category_id' => 'required|exists:categories,id',
             'capacity' => 'nullable|integer|min:1',
             'image' => 'nullable|image|max:2048',
-            'location' => 'nullable|string|max:255' // <--- Aceptamos ubicación
+            'location' => 'nullable|string|max:255' 
         ]);
 
         $imageUrl = null;
@@ -81,20 +83,22 @@ class EventController extends Controller
             $imageUrl = asset('storage/' . $path);
         }
 
+        // 3. Crear el evento
         $event = $request->user()->events()->create([
             'title' => $validated['title'],
             'description' => $validated['description'],
-            'start_at' => $validated['date'],
-            'end_at' => $validated['date'],
+            'start_at' => $validated['start_at'],
+            'end_at' => $validated['end_at'] ?? $validated['start_at'], // Si no hay fin, ponemos la misma de inicio
             'price' => $validated['price'],
             'category_id' => $validated['category_id'],
             'capacity' => $validated['capacity'] ?? 50,
             'image' => $imageUrl,
-            'location' => $validated['location'] ?? 'Online', // <--- Guardamos ubicación
+            'location' => $validated['location'] ?? 'Online',
             'status' => 'published'
         ]);
 
         return response()->json($event, 201);
+        
     }
 
     // GET /api/events/{id} (Público - Detalle)
@@ -139,7 +143,8 @@ class EventController extends Controller
         $validated = $request->validate([
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
-            'date' => 'nullable|date',
+            'start_at' => 'required|date', // Fecha y hora de inicio
+            'end_at' => 'nullable|date|after_or_equal:start_at',
             'price' => 'nullable|numeric',
             'category_id' => 'nullable|exists:categories,id',
             'capacity' => 'nullable|integer|min:1',
@@ -150,8 +155,8 @@ class EventController extends Controller
         $dataToUpdate = [
             'title' => $validated['title'] ?? $event->title,
             'description' => $validated['description'] ?? $event->description,
-            'start_at' => $validated['date'] ?? $event->start_at,
-            'end_at' => $validated['date'] ?? $event->end_at,
+            'start_at' => $validated['start_at'],
+            'end_at' => $validated['end_at'] ?? $validated['start_at'], // Si no hay fin, ponemos la misma de inicio
             'price' => $validated['price'] ?? $event->price,
             'category_id' => $validated['category_id'] ?? $event->category_id,
             'capacity' => $validated['capacity'] ?? $event->capacity,

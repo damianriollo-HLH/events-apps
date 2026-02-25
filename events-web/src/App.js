@@ -14,7 +14,6 @@ import EditEvent from './pages/EditEvent';
 import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
-import Checkout from './pages/Checkout';
 
 // --- COMPONENTE PRINCIPAL APP ---
 function App() {
@@ -40,10 +39,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />       {/* Panel de control */}
           <Route path="/profile" element={<Profile />} />           {/* Perfil de usuario */}
           <Route path="/create-event" element={<CreateEvent />} />  {/* Crear nuevo evento */}
-          <Route path="/event/edit/:id" element={<EditEvent />} />  {/* Editar evento existente */}
-
-          <Route path="/checkout/:id" element={<Checkout />} />
-          
+          <Route path="/event/edit/:id" element={<EditEvent />} />  {/* Editar evento existente */}          
         </Routes>
       </div>
 
