@@ -1,5 +1,41 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+// --- IMPORTACIONES DEL MAPA ---
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Arreglo para el icono por defecto del marcador en React
+const customIcon = new L.Icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+
+// --- SUB-COMPONENTE: EL CLIC EN EL MAPA ---
+function LocationPicker({ position, setPosition, setCity, setAddress }) {
+    useMapEvents({
+        click(e) {
+            const { lat, lng } = e.latlng;
+            setPosition([lat, lng]);
+
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                .then(res => res.json())
+                .then(data => {
+                    const addressData = data.address;
+                    const foundCity = addressData.city || addressData.town || addressData.village || addressData.county || '';
+                    const foundRoad = addressData.road || '';
+                    const houseNumber = addressData.house_number || '';
+                    
+                    setCity(foundCity);
+                    setAddress(`${foundRoad} ${houseNumber}`.trim() || data.display_name.split(',')[0]);
+                })
+                .catch(err => console.error("Error leyendo mapa:", err));
+        },
+    });
+    return position ? <Marker position={position} icon={customIcon} /> : null;
+}
 
 function EditEvent() {
   const { id } = useParams();
@@ -17,17 +53,20 @@ function EditEvent() {
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   
+  // Estado para las coordenadas del mapa (Por defecto Aspe)
+  const [mapPosition, setMapPosition] = useState([38.3455, -0.7683]); 
+  
   const [isFree, setIsFree] = useState(false);
   const [price, setPrice] = useState('');
   
   const [capacity, setCapacity] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [image, setImage] = useState(null);
-  const [currentImage, setCurrentImage] = useState(null); // Para mostrar la foto actual
+  const [currentImage, setCurrentImage] = useState(null); 
 
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(true); // Para esperar a que carguen los datos
+  const [loadingData, setLoadingData] = useState(true); 
   const [error, setError] = useState(null);
 
   const token = localStorage.getItem('auth_token');
@@ -105,7 +144,6 @@ function EditEvent() {
     const finalLocation = city && address ? `${city} | ${address}` : (city || address || 'Online');
 
     const formData = new FormData();
-    // TRUCO LARAVEL: Para enviar archivos al editar, usamos POST y le decimos que es PUT
     formData.append('_method', 'PUT'); 
     
     formData.append('title', title);
@@ -120,7 +158,7 @@ function EditEvent() {
 
     try {
         const response = await fetch(`http://127.0.0.1:8000/api/events/${id}`, {
-            method: 'POST', // Usamos POST por el truco del archivo
+            method: 'POST', 
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
@@ -132,7 +170,7 @@ function EditEvent() {
 
         if (response.ok) {
             alert('¡Evento actualizado con éxito! ✏️');
-            navigate(`/event/${id}`); // Volvemos a ver el evento
+            navigate(`/event/${id}`); 
         } else {
             setError(data.message || 'Error al actualizar el evento.');
             setLoading(false);
@@ -201,12 +239,32 @@ function EditEvent() {
                     </div>
                 </div>
 
-                {/* 3. DÓNDE (UBICACIÓN ESTRUCTURADA) */}
+                {/* --- 3. DÓNDE (MAPA INTERACTIVO) --- */}
                 <h5 className="text-primary border-bottom pb-2 mb-4 mt-4">3. ¿Dónde será?</h5>
+                
+                <div className="mb-3 rounded overflow-hidden shadow-sm border">
+                    <div className="bg-light p-2 text-center text-muted small fw-bold">
+                        👆 Haz clic en el mapa para actualizar la ubicación
+                    </div>
+                    {/* Añadido zoom 14 como pediste antes */}
+                    <MapContainer center={mapPosition} zoom={14} style={{ height: '300px', width: '100%', zIndex: 0 }}>
+                        <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        />
+                        <LocationPicker 
+                            position={mapPosition} 
+                            setPosition={setMapPosition} 
+                            setCity={setCity} 
+                            setAddress={setAddress} 
+                        />
+                    </MapContainer>
+                </div>
+
                 <div className="row mb-4 bg-light p-3 rounded border">
                     <div className="col-md-4 mb-3 mb-md-0">
                         <label className="form-label fw-bold">Ciudad *</label>
-                        <input type="text" className="form-control" placeholder="Ej: Madrid" value={city} onChange={e => setCity(e.target.value)} required />
+                        <input type="text" className="form-control" value={city} onChange={e => setCity(e.target.value)} required />
                     </div>
                     <div className="col-md-8">
                         <label className="form-label fw-bold">Dirección o Recinto *</label>

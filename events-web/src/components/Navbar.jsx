@@ -18,7 +18,16 @@ function Navbar() {
          style={{ background: 'linear-gradient(90deg, #4b6cb7 0%, #182848 100%)' }}>
       <div className="container">
         {/* LOGO */}
-        <Link className="navbar-brand fw-bold d-flex align-items-center gap-2" to="/">
+        <Link 
+          to="/"
+          className="navbar-brand fw-bold d-flex align-items-center gap-2" 
+          onClick={() => {
+            // Si ya estamos en inicio, forzamos un refresco limpio
+            if (window.location.pathname === '/') {
+                window.location.reload();
+            }
+          }}
+        >
           <span style={{ fontSize: '1.5rem' }}>🎟️</span> 
           <span>CaraLibre</span>
         </Link>
@@ -31,7 +40,17 @@ function Navbar() {
           <ul className="navbar-nav ms-auto align-items-center">
             
             <li className="nav-item">
-              <Link className="nav-link text-white" to="/">Inicio</Link>
+              <Link 
+                  to="/" 
+                  className="nav-link text-white"
+                  onClick={() => {
+                      // Si ya estamos en inicio, forzamos un refresco limpio
+                      if (window.location.pathname === '/') {
+                          window.location.reload();
+                      }
+                  }}
+              >Inicio
+              </Link>
             </li>
 
             {!token ? (
@@ -64,6 +83,7 @@ function Navbar() {
                   </a>
                   <ul className="dropdown-menu dropdown-menu-end shadow border-0">
                     <li><Link className="dropdown-item" to="/profile">👤 Mi Perfil</Link></li>
+                    <li><Link className="dropdown-item fw-bold text-danger" to="/admin">👑 Panel Admin</Link></li>
                     <li><Link className="dropdown-item" to="/dashboard">📊 Dashboard</Link></li>
                     <li><Link className="dropdown-item" to="/create-event">✨ Crear Evento</Link></li>
                     <li><hr className="dropdown-divider" /></li>

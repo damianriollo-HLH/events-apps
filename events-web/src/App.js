@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'; 
+import AdminPanel from './pages/AdminPanel';
 
 // --- COMPONENTES DE DISEÑO (LAYOUT) ---
 import Navbar from './components/Navbar'; 
@@ -40,6 +41,7 @@ function App() {
           <Route path="/profile" element={<Profile />} />           {/* Perfil de usuario */}
           <Route path="/create-event" element={<CreateEvent />} />  {/* Crear nuevo evento */}
           <Route path="/event/edit/:id" element={<EditEvent />} />  {/* Editar evento existente */}          
+          <Route path="/admin" element={<AdminPanel />} />
         </Routes>
       </div>
 

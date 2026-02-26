@@ -1,9 +1,48 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+// --- IMPORTACIONES DEL MAPA ---
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
+// Arreglo para el icono por defecto del marcador en React
+const customIcon = new L.Icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+
+// --- SUB-COMPONENTE: EL CLIC EN EL MAPA ---
+function LocationPicker({ position, setPosition, setCity, setAddress }) {
+    useMapEvents({
+        click(e) {
+            const { lat, lng } = e.latlng;
+            setPosition([lat, lng]); // Ponemos la chincheta
+
+            // Magia: Convertimos coordenadas en Ciudad y Calle (Geocodificación Inversa)
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                .then(res => res.json())
+                .then(data => {
+                    const addressData = data.address;
+                    // Intentamos sacar la ciudad (a veces se llama town o village)
+                    const foundCity = addressData.city || addressData.town || addressData.village || addressData.county || '';
+                    const foundRoad = addressData.road || '';
+                    const houseNumber = addressData.house_number || '';
+                    
+                    setCity(foundCity);
+                    setAddress(`${foundRoad} ${houseNumber}`.trim() || data.display_name.split(',')[0]);
+                })
+                .catch(err => console.error("Error leyendo mapa:", err));
+        },
+    });
+    return position ? <Marker position={position} icon={customIcon} /> : null;
+}
+
+// --- COMPONENTE PRINCIPAL ---
 function CreateEvent() {
   const navigate = useNavigate();
-
+  
   // --- ESTADOS DEL FORMULARIO ---
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -11,17 +50,19 @@ function CreateEvent() {
   // Fechas y Horas separadas para mejor UX
   const [startDate, setStartDate] = useState('');
   const [startTime, setStartTime] = useState('');
-  const [endDate, setEndDate] = useState(''); // Opcional
-  const [endTime, setEndTime] = useState(''); // Opcional
+  const [endDate, setEndDate] = useState(''); 
+  const [endTime, setEndTime] = useState(''); 
 
   // Ubicación estructurada
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   
-  // Lógica de precio
+  // Estado para las coordenadas del mapa (Por defecto Aspe)
+  const [mapPosition, setMapPosition] = useState([38.3455, -0.7683]);
+  // Lógica de Precio
   const [isFree, setIsFree] = useState(false);
   const [price, setPrice] = useState('');
-  
+
   const [capacity, setCapacity] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [image, setImage] = useState(null);
@@ -47,10 +88,8 @@ function CreateEvent() {
     // 1. Unimos Fechas y Horas para el Backend (Formato YYYY-MM-DD HH:MM)
     const finalStartAt = `${startDate} ${startTime}:00`;
     let finalEndAt = null;
-    if (endDate && endTime) {
-        finalEndAt = `${endDate} ${endTime}:00`;
-    }
-
+    if (endDate && endTime) finalEndAt = `${endDate} ${endTime}:00`;
+    
     // 2. Unimos la Ubicación para facilitar el filtro en el futuro
     // Guardaremos algo como: "Madrid | Calle Falsa 123"
     const finalLocation = city && address ? `${city} | ${address}` : (city || address || 'Online');
@@ -71,15 +110,12 @@ function CreateEvent() {
     try {
         const response = await fetch('http://127.0.0.1:8000/api/events', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
             body: formData
         });
 
         const data = await response.json();
-
+        
         if (response.ok) {
             alert('¡Evento creado con éxito! 🎉');
             navigate('/dashboard');
@@ -118,7 +154,7 @@ function CreateEvent() {
                     <label className="form-label fw-bold">Descripción</label>
                     <textarea className="form-control" rows="3" value={description} onChange={e => setDescription(e.target.value)} required></textarea>
                 </div>
-
+                
                 {/* 2. CUÁNDO (FECHAS Y HORAS) */}
                 <h5 className="text-primary border-bottom pb-2 mb-4 mt-5">2. ¿Cuándo será?</h5>
                 <div className="row mb-4">
@@ -138,18 +174,36 @@ function CreateEvent() {
                     </div>
                 </div>
 
-                {/* 3. DÓNDE (UBICACIÓN ESTRUCTURADA) */}
+                {/* --- 3. DÓNDE (MAPA INTERACTIVO) --- */}
                 <h5 className="text-primary border-bottom pb-2 mb-4 mt-4">3. ¿Dónde será?</h5>
+                
+                <div className="mb-3 rounded overflow-hidden shadow-sm border">
+                    <div className="bg-light p-2 text-center text-muted small fw-bold">
+                        👆 Haz clic en el mapa para ubicar tu evento
+                    </div>
+                    <MapContainer center={mapPosition} zoom={14} style={{ height: '300px', width: '100%', zIndex: 0 }}>
+                        <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        />
+                        <LocationPicker 
+                            position={mapPosition} 
+                            setPosition={setMapPosition} 
+                            setCity={setCity} 
+                            setAddress={setAddress} 
+                        />
+                    </MapContainer>
+                </div>
+
                 <div className="row mb-4 bg-light p-3 rounded border">
                     <div className="col-md-4 mb-3 mb-md-0">
                         <label className="form-label fw-bold">Ciudad *</label>
-                        <input type="text" className="form-control" placeholder="Ej: Madrid" value={city} onChange={e => setCity(e.target.value)} required />
+                        <input type="text" className="form-control" placeholder="Autocompletado..." value={city} onChange={e => setCity(e.target.value)} required />
                     </div>
                     <div className="col-md-8">
                         <label className="form-label fw-bold">Dirección o Recinto *</label>
-                        <input type="text" className="form-control" placeholder="Ej: Teatro Principal, Calle Gran Vía 12" value={address} onChange={e => setAddress(e.target.value)} required />
+                        <input type="text" className="form-control" placeholder="Autocompletado..." value={address} onChange={e => setAddress(e.target.value)} required />
                     </div>
-                    <small className="text-muted mt-2">📍 En el futuro usaremos la ciudad para que los usuarios puedan filtrar eventos cercanos a ellos.</small>
                 </div>
 
                 {/* 4. DETALLES Y ENTRADAS */}

@@ -14,23 +14,28 @@ class EventController extends Controller
         $query = Event::with(['category', 'user'])
             ->where('status', 'published');
 
-        // 1. FILTRO DE TEXTO (Título, Descripción O CIUDAD)
-        if ($request->has('search')) {
+        // 1. FILTRO DE TEXTO GENERAL (Título o Descripción)
+        if ($request->has('search') && $request->input('search') != '') {
             $searchTerm = $request->input('search');
             $query->where(function($q) use ($searchTerm) {
                 $q->where('title', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('description', 'LIKE', "%{$searchTerm}%")
-                  // IMPORTANTE: Esto fallará si no tienes la columna 'location' en la BD
-                  ->orWhere('location', 'LIKE', "%{$searchTerm}%"); 
+                  ->orWhere('description', 'LIKE', "%{$searchTerm}%");
             });
         }
 
-        // 2. FILTRO POR CATEGORÍA
+        // 2. FILTRO ESPECÍFICO POR CIUDAD (¡NUEVO!)
+        // Como guardamos "Madrid | Teatro", si buscamos "Madrid" lo encontrará perfecto.
+        if ($request->has('city') && $request->input('city') != '') {
+            $city = $request->input('city');
+            $query->where('location', 'LIKE', "%{$city}%");
+        }
+
+        // 3. FILTRO POR CATEGORÍA
         if ($request->has('category') && $request->category != 'null') {
             $query->where('category_id', $request->input('category'));
         }
 
-        // 3. FILTRO POR FECHA
+        // 4. FILTRO POR FECHA
         if ($request->has('date')) {
             $dateFilter = $request->input('date');
             $today = now()->format('Y-m-d');
@@ -48,7 +53,7 @@ class EventController extends Controller
             }
         }
 
-        // 4. ORDENAMIENTO
+        // 5. ORDENAMIENTO
         $sort = $request->input('sort', 'newest');
         
         switch ($sort) {
@@ -58,7 +63,9 @@ class EventController extends Controller
             case 'newest': default: $query->orderBy('created_at', 'desc'); break;
         }
 
-        return response()->json($query->get());
+        // En lugar de get() (traer todos), usamos paginate(9) para traerlos de 9 en 9.
+        $events = $query->paginate(9); 
+        return response()->json($events);
     }
 
     // POST /api/events (Privado - Crear Evento)
@@ -243,5 +250,36 @@ class EventController extends Controller
         }
         $event->delete();
         return response()->json(['message' => 'Eliminado']);
+    }
+
+    // --- FUNCIONES DE ADMINISTRADOR ---
+    public function adminIndex(Request $request)
+    {
+        // 1. Comprobar si el usuario es admin
+        if (!$request->user()->is_admin) {
+            return response()->json(['message' => 'No tienes permiso para ver esto'], 403);
+        }
+
+        // 2. Devolver TODOS los eventos (con el nombre de su creador) ordenados por fecha de creación
+        $events = Event::with('user')->orderBy('created_at', 'desc')->get();
+        return response()->json($events);
+    }
+
+    public function toggleFeature(Request $request, $id)
+    {
+        if (!$request->user()->is_admin) {
+            return response()->json(['message' => 'No tienes permiso'], 403);
+        }
+
+        $event = Event::findOrFail($id);
+        
+        // Invertimos el valor (si era true pasa a false, y viceversa)
+        $event->is_featured = !$event->is_featured; 
+        $event->save();
+
+        return response()->json([
+            'message' => 'Estado destacado actualizado',
+            'is_featured' => $event->is_featured
+        ]);
     }
 }

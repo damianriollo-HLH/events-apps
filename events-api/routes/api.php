@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\RatingController;
-// use App\Http\Controllers\Api\EnrollmentController; // (Ya no lo usamos, usamos EventController)
 
 /*
 |--------------------------------------------------------------------------
@@ -41,6 +40,10 @@ Route::get('/events/{id}', [EventController::class, 'show']);
 // ========================================================================
 
 Route::middleware('auth:sanctum')->group(function () {
+
+    // Rutas exclusivas para el Administrador
+    Route::get('/admin/events', [App\Http\Controllers\Api\EventController::class, 'adminIndex']);
+    Route::put('/admin/events/{id}/feature', [App\Http\Controllers\Api\EventController::class, 'toggleFeature']);    
     
     // --- USUARIO ---
     Route::post('/logout', [AuthController::class, 'logout']);
