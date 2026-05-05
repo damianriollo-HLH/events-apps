@@ -26,9 +26,9 @@ function Footer() {
           {/* COLUMNA 3: CONTACTO */}
           <div className="col-md-4 col-lg-3 col-xl-3 mx-auto mt-3">
             <h5 className="text-uppercase mb-4 fw-bold">Contacto</h5>
-            <p><i className="fas fa-home mr-3"></i> Madrid, España</p>
-            <p><i className="fas fa-envelope mr-3"></i> info@caralibre.com</p>
-            <p><i className="fas fa-phone mr-3"></i> +34 912 345 678</p>
+            <p><i className="fas fa-home mr-3"></i> Aspe, España</p>
+            <p><i className="fas fa-envelope mr-3"></i> damianriollo@gmail.com</p>
+            <p><i className="fas fa-phone mr-3"></i> +34 698 917 994</p>
           </div>
         </div>
 

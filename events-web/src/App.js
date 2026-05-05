@@ -1,10 +1,11 @@
+// src/App.js
 import { Routes, Route } from 'react-router-dom'; 
 import AdminPanel from './pages/AdminPanel';
 
 // --- COMPONENTES DE DISEÑO (LAYOUT) ---
 import Navbar from './components/Navbar'; 
-import Footer from './components/Footer'; // Importamos el nuevo pie de página
-import './App.css'; // Estilos globales (fuentes, colores, etc.)
+import Footer from './components/Footer'; 
+import './App.css'; // Estilos globales y variables CSS del Tema
 
 // --- PÁGINAS (VISTAS) ---
 import Home from './pages/Home'; 
@@ -16,17 +17,20 @@ import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 
-// --- COMPONENTE PRINCIPAL APP ---
+/**
+ * Componente Raíz de la Aplicación CaraLibre.
+ * Gestiona el Layout principal (Navbar y Footer) y el enrutamiento de las vistas.
+ * * @returns {JSX.Element}
+ */
 function App() {
   return (
-    // Usamos un fragmento o div contenedor. 
-    // Gracias al CSS en #root, esto ocupará toda la altura.
+    // Fragmento de React: No ensucia el DOM con divs innecesarios
     <>
       {/* 1. BARRA DE NAVEGACIÓN SUPERIOR (Siempre visible) */}
       <Navbar />
 
       {/* 2. CONTENIDO PRINCIPAL (Cuerpo de la página) */}
-      {/* La clase 'main-content' hace que este bloque crezca para empujar el footer abajo */}
+      {/* La clase 'main-content' combinada con Flexbox en App.css asegura que el footer no flote */}
       <div className="main-content container mt-4 mb-5">
         <Routes>
           {/* RUTAS PÚBLICAS */}
@@ -36,7 +40,6 @@ function App() {
           <Route path="/register" element={<Register />} />   {/* Formulario de registro */}
 
           {/* RUTAS PRIVADAS (Requieren estar logueado) */}
-          {/* En una app real, aquí usaríamos un componente <ProtectedRoute> */}
           <Route path="/dashboard" element={<Dashboard />} />       {/* Panel de control */}
           <Route path="/profile" element={<Profile />} />           {/* Perfil de usuario */}
           <Route path="/create-event" element={<CreateEvent />} />  {/* Crear nuevo evento */}
@@ -45,7 +48,7 @@ function App() {
         </Routes>
       </div>
 
-      {/* 3. PIE DE PÁGINA (Siempre al final) */}
+      {/* 3. PIE DE PÁGINA */}
       <Footer />
     </>
   );

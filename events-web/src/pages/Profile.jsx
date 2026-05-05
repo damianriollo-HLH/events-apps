@@ -103,8 +103,8 @@ function Profile() {
   return (
     <div className="container mt-5 mb-5">
         <div className="card shadow border-0" style={{ maxWidth: '600px', margin: '0 auto' }}>
-            <div className="card-header bg-dark text-white p-4 text-center">
-                <h2 className="mb-0">👤 Mi Perfil</h2>
+            <div className="card-header bg-transparent border-bottom p-4 text-center">
+                <h2 className="mb-0 fw-bold text-body">👤 Mi Perfil</h2>
             </div>
             
             <div className="card-body p-4 p-md-5">
@@ -140,12 +140,13 @@ function Profile() {
                         <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required />
                     </div>
 
-                    {/* 2. PREFERENCIAS DE NOTIFICACIÓN (NUEVO) */}
+                    {/* 2. PREFERENCIAS DE NOTIFICACIÓN*/}
                     <h5 className="text-primary border-bottom pb-2 mb-3">Preferencias</h5>
-                    <div className="p-3 bg-light rounded border mb-4">
+
+                    <div className="p-3 bg-light text-dark rounded border mb-4">
                         <div className="form-check form-switch d-flex align-items-center gap-3">
                             <input 
-                                className="form-check-input fs-4 m-0" 
+                                className="form-check-input fs-4 m-0 border-secondary" 
                                 type="checkbox" 
                                 role="switch" 
                                 id="emailSwitch"
@@ -154,7 +155,7 @@ function Profile() {
                             />
                             <label className="form-check-label" htmlFor="emailSwitch">
                                 <strong className="d-block">Notificaciones por Email</strong>
-                                <small className="text-muted">Avisos sobre mis eventos y nuevas entradas compradas.</small>
+                                <small className="text-secondary">Avisos sobre mis eventos y nuevas entradas compradas.</small>
                             </label>
                         </div>
                     </div>

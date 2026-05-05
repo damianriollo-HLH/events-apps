@@ -63,7 +63,7 @@ function EventDetail() {
       });
   }, [id, token]);
 
-  // 2. FUNCIÓN DE COMPRA (Igual que ayer)
+  // 2. FUNCIÓN DE COMPRA
   const handlePurchase = async () => {
     setProcessing(true);
     try {
@@ -127,15 +127,15 @@ function EventDetail() {
                     
                     <div className="d-flex flex-wrap gap-4 text-muted mb-4 pb-4 border-bottom">
                         <div>
-                            <strong className="d-block text-dark">📅 Fecha y Hora</strong>
+                            <strong className="d-block">📅 Fecha y Hora</strong>
                             {new Date(event.start_at).toLocaleString()}
                         </div>
                         <div>
-                            <strong className="d-block text-dark">📍 Ubicación</strong>
+                            <strong className="d-block">📍 Ubicación</strong>
                             {city} {address && `- ${address}`}
                         </div>
                         <div>
-                            <strong className="d-block text-dark">👤 Organiza</strong>
+                            <strong className="d-block">👤 Organiza</strong>
                             {event.user?.name || 'Usuario'}
                         </div>
                     </div>
@@ -147,10 +147,10 @@ function EventDetail() {
 
             {/* --- ZONA DEL MAPA (SOLO SI HAY COORDENADAS) --- */}
             {mapCoords && (
-                <div className="card shadow-sm border-0 mb-4 overflow-hidden">
-                    <div className="card-header bg-white p-4 border-bottom-0">
-                        <h4 className="fw-bold m-0">🗺️ Cómo llegar</h4>
-                        <p className="text-muted m-0">{address ? `${address}, ${city}` : city}</p>
+                <div className="card shadow-sm border-secondary border-opacity-25 mb-4 overflow-hidden bg-transparent">
+                    <div className="card-header bg-transparent p-4 border-bottom border-secondary border-opacity-25">
+                        <h4 className="fw-bold m-0 text-body">🗺️ Cómo llegar</h4>
+                        <p className="text-secondary m-0 mt-1">{address ? `${address}, ${city}` : city}</p>
                     </div>
                     {/* Mapa de Solo Lectura (Sin eventos de clic) */}
                     <MapContainer center={mapCoords} zoom={15} style={{ height: '350px', width: '100%', zIndex: 0 }}>
@@ -169,19 +169,18 @@ function EventDetail() {
             <div className="card shadow-sm p-4 sticky-top border-0" style={{top: '20px'}}>
                 <div className="text-center mb-4">
                     <h5 className="text-muted mb-1">{isFree ? 'Entrada' : 'Precio por entrada'}</h5>
-                    <h2 className={`fw-bold display-5 m-0 ${isFree ? 'text-success' : 'text-dark'}`}>
-                        {isFree ? 'GRATIS' : `$${event.price}`}
+                    <h2 className={`fw-bold display-5 m-0 ${isFree ? 'text-success' : ''}`}>{isFree ? 'GRATIS' : `$${event.price}`}
                     </h2>
                 </div>
                 
-                <ul className="list-group list-group-flush mb-4 small">
-                    <li className="list-group-item d-flex justify-content-between px-0">
-                        <span className="text-muted">Aforo disponible:</span>
-                        <strong>{event.capacity} plazas</strong>
+                <ul className="list-group list-group-flush mb-4 small bg-transparent">
+                    <li className="list-group-item bg-transparent d-flex justify-content-between align-items-start px-0 border-secondary border-opacity-25">
+                        <span className="text-secondary me-2 flex-shrink-0">Aforo disponible:</span>
+                        <strong className="text-body text-end text-break">{event.capacity} plazas</strong>
                     </li>
-                    <li className="list-group-item d-flex justify-content-between px-0">
-                        <span className="text-muted">Categoría:</span>
-                        <strong>{event.category?.name || 'General'}</strong>
+                    <li className="list-group-item bg-transparent d-flex justify-content-between align-items-start px-0 border-secondary border-opacity-25">
+                        <span className="text-secondary me-2 flex-shrink-0">Categoría:</span>
+                        <strong className="text-body text-end text-break">{event.category?.name || 'General'}</strong>
                     </li>
                 </ul>
                 
@@ -214,39 +213,41 @@ function EventDetail() {
       {/* ======================================================= */}
       {showModal && (
         <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1040, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <div className="card shadow-lg border-0 rounded-4" style={{ width: '90%', maxWidth: '450px', zIndex: 1050, animation: 'fadeIn 0.3s' }}>
-                <div className="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-center p-4 pb-0">
+            
+            <div className="card shadow-lg border-0 rounded-4 text-body" style={{ width: '90%', maxWidth: '450px', zIndex: 1050, animation: 'fadeIn 0.3s' }}>
+            
+                <div className="card-header bg-transparent border-bottom-0 d-flex justify-content-between align-items-center p-4 pb-0">
                     <h4 className="mb-0 fw-bold">Finalizar Compra</h4>
                     <button onClick={handleCloseModal} className="btn-close" aria-label="Close"></button>
                 </div>
                 
                 <div className="card-body p-4">
-                    <div className="d-flex align-items-center gap-3 mb-4 bg-light p-3 rounded-3">
-                        <div style={{width: '60px', height: '60px', borderRadius: '10px', overflow: 'hidden'}}>
-                            <img src={event.image || "https://placehold.co/100x100"} alt="mini" className="w-100 h-100" style={{objectFit: 'cover'}}/>
-                        </div>
-                        <div>
-                            <h6 className="fw-bold mb-1 text-truncate" style={{maxWidth: '250px'}}>{event.title}</h6>
-                            <small className="text-muted">📅 {new Date(event.start_at).toLocaleDateString()}</small>
-                        </div>
-                    </div>
+                    <div className="d-flex align-items-center gap-3 mb-4 bg-light text-dark p-3 rounded-3 shadow-sm">
+                  <div style={{width: '60px', height: '60px', borderRadius: '10px', overflow: 'hidden'}}>
+                      <img src={event.image || "https://placehold.co/100x100"} alt="mini" className="w-100 h-100" style={{objectFit: 'cover'}}/>
+                  </div>
+                  <div>
+                      <h6 className="fw-bold mb-1 text-truncate" style={{maxWidth: '250px'}}>{event.title}</h6>
+                      <small className="text-secondary">📅 {new Date(event.start_at).toLocaleDateString()}</small>
+                  </div>
+              </div>
 
                     <div className="mb-4">
-                        <label className="form-label fw-bold text-muted small text-uppercase">Cantidad de Entradas</label>
+                        <label className="form-label fw-bold text-secondary small text-uppercase">Cantidad de Entradas</label>
                         <div className="d-flex align-items-center gap-3">
-                            <button className="btn btn-outline-dark rounded-circle d-flex justify-content-center align-items-center" style={{width: '40px', height: '40px'}} onClick={() => setQuantity(q => Math.max(1, q - 1))} disabled={quantity <= 1}>-</button>
-                            <span className="fs-3 fw-bold">{quantity}</span>
-                            <button className="btn btn-outline-dark rounded-circle d-flex justify-content-center align-items-center" style={{width: '40px', height: '40px'}} onClick={() => setQuantity(q => Math.min(10, Math.min(event.capacity, q + 1)))}>+</button>
+                          <button className="btn btn-outline-secondary rounded-circle d-flex justify-content-center align-items-center" style={{width: '40px', height: '40px'}} onClick={() => setQuantity(q => Math.max(1, q - 1))} disabled={quantity <= 1}>-</button>
+                          <span className="fs-3 fw-bold">{quantity}</span>
+                          <button className="btn btn-outline-secondary rounded-circle d-flex justify-content-center align-items-center" style={{width: '40px', height: '40px'}} onClick={() => setQuantity(q => Math.min(10, Math.min(event.capacity, q + 1)))}>+</button>
                         </div>
                     </div>
 
-                    <div className="bg-light p-4 rounded-4 mb-4">
+                    <div className="bg-light text-dark p-4 rounded-4 mb-4 shadow-sm">
                         <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted">Entradas x {quantity}</span>
+                            <span className="text-secondary">Entradas x {quantity}</span>
                             <span className="fw-bold">${totalPrice}</span>
                         </div>
-                        <div className="d-flex justify-content-between mb-3 border-bottom pb-3">
-                            <span className="text-muted">Gastos de gestión (5%)</span>
+                        <div className="d-flex justify-content-between mb-3 border-bottom pb-3 border-secondary border-opacity-25">
+                            <span className="text-secondary">Gastos de gestión (5%)</span>
                             <span className="fw-bold">${serviceFee}</span>
                         </div>
                         <div className="d-flex justify-content-between align-items-center">

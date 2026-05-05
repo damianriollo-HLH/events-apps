@@ -1,35 +1,46 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useContext } from 'react';
+// IMPORTACIÓN CRÍTICA: Aquí traemos el contexto exportado en el paso anterior
+import { ThemeContext } from '../context/ThemeProvider';
 
 function Navbar() {
   const navigate = useNavigate();
   const token = localStorage.getItem('auth_token');
   const userName = localStorage.getItem('user_name');
-  // Recuperamos la imagen si existe (si no, null)
   const userImage = localStorage.getItem('user_image');
+
+  // Consumimos el contexto. Si ThemeContext no es undefined, esto funcionará perfecto.
+  const { theme, toggleTheme } = useContext(ThemeContext);
 
   const handleLogout = () => {
     localStorage.clear();
+    localStorage.setItem('caralibre_theme', theme); 
     navigate('/login');
   };
 
   return (
-    // Usamos un estilo en línea para el degradado o una clase CSS
     <nav className="navbar navbar-expand-lg navbar-dark shadow-sm" 
          style={{ background: 'linear-gradient(90deg, #4b6cb7 0%, #182848 100%)' }}>
       <div className="container">
-        {/* LOGO */}
+        
         <Link 
           to="/"
-          className="navbar-brand fw-bold d-flex align-items-center gap-2" 
+          className="navbar-brand py-0 m-0 d-flex align-items-center" 
           onClick={() => {
-            // Si ya estamos en inicio, forzamos un refresco limpio
-            if (window.location.pathname === '/') {
-                window.location.reload();
-            }
+            if (window.location.pathname === '/') window.location.reload();
           }}
-        >
-          <span style={{ fontSize: '1.5rem' }}>🎟️</span> 
-          <span>CaraLibre</span>
+          >
+          <img 
+              src="/img/logo.png" 
+              alt="Logo CaraLibre" 
+              style={{ 
+                  height: '45px', 
+                  objectFit: 'contain',
+                  transform: 'scale(3.5)', 
+                  transformOrigin: 'left center',
+                  marginLeft: '0px'
+              }} 
+          />
         </Link>
 
         <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -42,53 +53,59 @@ function Navbar() {
             <li className="nav-item">
               <Link 
                   to="/" 
-                  className="nav-link text-white"
+                  className="nav-link text-white fw-semibold"
                   onClick={() => {
-                      // Si ya estamos en inicio, forzamos un refresco limpio
-                      if (window.location.pathname === '/') {
-                          window.location.reload();
-                      }
+                      if (window.location.pathname === '/') window.location.reload();
                   }}
               >Inicio
               </Link>
             </li>
 
+            {/* BOTÓN MODO OSCURO */}
+            <li className="nav-item ms-2 me-2">
+              <button 
+                onClick={toggleTheme} 
+                className="btn btn-link text-decoration-none fs-5 d-flex align-items-center justify-content-center"
+                style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.1)' }}
+                title={theme === 'light' ? 'Activar Modo Oscuro' : 'Activar Modo Claro'}
+              >
+                {theme === 'light' ? '🌙' : '☀️'}
+              </button>
+            </li>
+
             {!token ? (
-              // SI NO ESTÁS LOGUEADO
               <>
                 <li className="nav-item">
-                  <Link className="nav-link text-white" to="/login">Entrar</Link>
+                  <Link className="nav-link text-white fw-semibold" to="/login">Entrar</Link>
                 </li>
                 <li className="nav-item ms-2">
-                  <Link className="btn btn-light text-primary fw-bold" to="/register">Registrarse</Link>
+                  <Link className="btn btn-light text-primary fw-bold rounded-pill px-4" to="/register">Registrarse</Link>
                 </li>
               </>
             ) : (
-              // SI ESTÁS LOGUEADO
               <>
                 <li className="nav-item">
-                  <Link className="nav-link text-white" to="/dashboard">Mis Eventos</Link>
+                  <Link className="nav-link text-white fw-semibold" to="/dashboard">Mis Eventos</Link>
                 </li>
                 
-                {/* MENÚ DE USUARIO CON FOTO */}
                 <li className="nav-item dropdown ms-3">
                   <a className="nav-link dropdown-toggle d-flex align-items-center gap-2 text-white" href="#" role="button" data-bs-toggle="dropdown">
                     <img 
                         src={userImage || `https://ui-avatars.com/api/?name=${userName}&background=random`} 
                         alt="Avatar" 
-                        className="rounded-circle border border-2 border-white"
-                        style={{ width: '35px', height: '35px', objectFit: 'cover' }}
+                        className="rounded-circle border border-2 border-white shadow-sm"
+                        style={{ width: '38px', height: '38px', objectFit: 'cover' }}
                     />
-                    <span>{userName}</span>
+                    <span className="fw-semibold">{userName}</span>
                   </a>
-                  <ul className="dropdown-menu dropdown-menu-end shadow border-0">
-                    <li><Link className="dropdown-item" to="/profile">👤 Mi Perfil</Link></li>
-                    <li><Link className="dropdown-item fw-bold text-danger" to="/admin">👑 Panel Admin</Link></li>
-                    <li><Link className="dropdown-item" to="/dashboard">📊 Dashboard</Link></li>
-                    <li><Link className="dropdown-item" to="/create-event">✨ Crear Evento</Link></li>
+                  <ul className="dropdown-menu dropdown-menu-end shadow-lg border-0" style={{ borderRadius: '15px' }}>
+                    <li><Link className="dropdown-item py-2" to="/profile">👤 Mi Perfil</Link></li>
+                    <li><Link className="dropdown-item py-2 fw-bold text-danger" to="/admin">👑 Panel Admin</Link></li>
+                    <li><Link className="dropdown-item py-2" to="/dashboard">📊 Dashboard</Link></li>
+                    <li><Link className="dropdown-item py-2" to="/create-event">✨ Crear Evento</Link></li>
                     <li><hr className="dropdown-divider" /></li>
                     <li>
-                        <button className="dropdown-item text-danger" onClick={handleLogout}>
+                        <button className="dropdown-item py-2 text-danger fw-bold" onClick={handleLogout}>
                             🚪 Cerrar Sesión
                         </button>
                     </li>

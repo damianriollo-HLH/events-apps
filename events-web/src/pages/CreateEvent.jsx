@@ -132,8 +132,8 @@ function CreateEvent() {
   return (
     <div className="container my-5">
       <div className="card shadow-lg border-0" style={{ maxWidth: '850px', margin: '0 auto' }}>
-        <div className="card-header bg-dark text-white p-4 text-center">
-            <h2 className="mb-0">✨ Crear Nuevo Evento</h2>
+        <div className="card-header bg-transparent border-bottom p-4 text-center">
+            <h2 className="mb-0 fw-bold text-body">✨ Crear Nuevo Evento</h2>
         </div>
         
         <div className="card-body p-4 p-md-5">
@@ -178,7 +178,7 @@ function CreateEvent() {
                 <h5 className="text-primary border-bottom pb-2 mb-4 mt-4">3. ¿Dónde será?</h5>
                 
                 <div className="mb-3 rounded overflow-hidden shadow-sm border">
-                    <div className="bg-light p-2 text-center text-muted small fw-bold">
+                    <div className="p-2 text-center text-secondary small fw-bold border-bottom">
                         👆 Haz clic en el mapa para ubicar tu evento
                     </div>
                     <MapContainer center={mapPosition} zoom={14} style={{ height: '300px', width: '100%', zIndex: 0 }}>
@@ -194,13 +194,13 @@ function CreateEvent() {
                         />
                     </MapContainer>
                 </div>
-
-                <div className="row mb-4 bg-light p-3 rounded border">
-                    <div className="col-md-4 mb-3 mb-md-0">
+                    {/* -- CIUDAD - DIRECCIÓN O RECINTO -- */}
+                <div className="row mx-0 mb-4 p-3 rounded border text-body mt-3 shadow-sm">
+                    <div className="col-md-4 mb-3 mb-md-0 px-2">
                         <label className="form-label fw-bold">Ciudad *</label>
                         <input type="text" className="form-control" placeholder="Autocompletado..." value={city} onChange={e => setCity(e.target.value)} required />
                     </div>
-                    <div className="col-md-8">
+                    <div className="col-md-8 px-2">
                         <label className="form-label fw-bold">Dirección o Recinto *</label>
                         <input type="text" className="form-control" placeholder="Autocompletado..." value={address} onChange={e => setAddress(e.target.value)} required />
                     </div>
@@ -222,16 +222,16 @@ function CreateEvent() {
                     </div>
                 </div>
 
-                <div className="p-3 bg-light rounded border mb-5">
+                <div className="p-3 rounded border mb-5 text-body shadow-sm">
                     <div className="form-check form-switch mb-3">
-                        <input className="form-check-input fs-5" type="checkbox" role="switch" id="freeSwitch" checked={isFree} onChange={(e) => { setIsFree(e.target.checked); if(e.target.checked) setPrice(''); }} />
+                        <input className="form-check-input fs-5 border-secondary" type="checkbox" role="switch" id="freeSwitch" checked={isFree} onChange={(e) => { setIsFree(e.target.checked); if(e.target.checked) setPrice(''); }} />
                         <label className="form-check-label fw-bold text-success fs-5 ms-2" htmlFor="freeSwitch">
                             ¡Entrada Gratuita!
                         </label>
                     </div>
                     {!isFree && (
                         <div className="input-group" style={{maxWidth: '300px'}}>
-                            <span className="input-group-text bg-white fw-bold">Precio $</span>
+                            <span className="input-group-text fw-bold">Precio $</span>
                             <input type="number" className="form-control form-control-lg text-success fw-bold" min="1" step="0.01" value={price} onChange={e => setPrice(e.target.value)} required={!isFree} placeholder="0.00" />
                         </div>
                     )}

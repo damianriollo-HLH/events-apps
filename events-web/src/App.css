@@ -1,40 +1,55 @@
+/* ==========================================================================
+ * CARALIBRE - ESTILOS GLOBALES
+ * Arquitectura: CSS Variables + Bootstrap 5.3+ Compatibility
+ * ========================================================================== */
+
 /* 1. IMPORTAR FUENTE MODERNA */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
-/* 2. BASE */
+/* ==========================================================================
+ * 2. SISTEMA DE DISEÑO: VARIABLES (THEMING)
+ * Por qué: Permite escalar el modo oscuro y el patrón Bento desde un solo lugar.
+ * ========================================================================== */
+:root {
+  /* --- Sistema Bento Grid --- */
+  --bento-radius-sm: 1rem;      /* 16px */
+  --bento-radius-md: 1.5rem;    /* 24px */
+  --bento-radius-lg: 2rem;      /* 32px */
+  --bento-gap: 1.5rem;
+  
+  /* --- Tema Claro (Por Defecto) --- */
+  --cl-bg-main: #f4f6f9;        /* Tu gris azulado original */
+  --cl-text-main: #333333;
+  --cl-heading-color: #2c3e50;
+  --cl-card-bg: #ffffff;
+  --cl-border-subtle: rgba(0, 0, 0, 0.05);
+  --cl-shadow-base: 0 4px 24px rgba(0, 0, 0, 0.04);
+  --cl-shadow-hover: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* --- Tema Oscuro (Se activa cuando la etiqueta <html> tiene data-bs-theme="dark") --- */
+[data-bs-theme="dark"] {
+  --cl-bg-main: #121212;        /* Fondo oscuro material design */
+  --cl-text-main: #e0e0e0;      /* Gris claro para no fatigar la vista */
+  --cl-heading-color: #ffffff;
+  --cl-card-bg: #1e1e1e;        /* Ligeramente más claro que el fondo para destacar cajas */
+  --cl-border-subtle: rgba(255, 255, 255, 0.08);
+  --cl-shadow-base: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --cl-shadow-hover: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+/* ==========================================================================
+ * 3. BASE Y LAYOUT
+ * ========================================================================== */
 body {
   font-family: 'Poppins', sans-serif;
-  background-color: #f4f6f9; /* Gris azulado muy suave */
-  color: #333;
+  background-color: var(--cl-bg-main);
+  color: var(--cl-text-main);
+  /* Transición crucial: hace que el cambio claro/oscuro sea elegante y no brusco */
+  transition: background-color 0.4s ease, color 0.4s ease;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-/* 3. ESTILOS DE TARJETAS (Efecto flotante) */
-.card {
-  border: none !important; /* Quitamos bordes feos */
-  border-radius: 15px !important; /* Bordes redondeados */
-  transition: all 0.3s ease; /* Animación suave */
-  background: white;
-}
-
-.hover-effect:hover {
-  transform: translateY(-5px); /* Se mueve hacia arriba */
-  box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; /* Sombra elegante */
-}
-
-/* 4. BOTONES MODERNOS */
-.btn {
-  border-radius: 50px !important; /* Botones redondos tipo pastilla */
-  padding: 8px 20px !important;
-  font-weight: 600 !important;
-}
-
-/* 5. TITULOS */
-h1, h2, h3, h4, h5 {
-  font-weight: 700;
-  color: #2c3e50;
 }
 
 /* Para que el footer se quede abajo siempre */
@@ -43,6 +58,44 @@ h1, h2, h3, h4, h5 {
   flex-direction: column;
   min-height: 100vh;
 }
+
 .main-content {
   flex: 1;
+}
+
+/* ==========================================================================
+ * 4. TIPOGRAFÍA
+ * ========================================================================== */
+h1, h2, h3, h4, h5 {
+  font-weight: 700;
+  color: var(--cl-heading-color);
+  transition: color 0.4s ease;
+}
+
+/* ==========================================================================
+ * 5. COMPONENTES: BENTO CARDS Y BOTONES
+ * ========================================================================== */
+
+/* Adaptación de tu tarjeta original a la filosofía Bento */
+.card, .bento-card {
+  border: 1px solid var(--cl-border-subtle) !important; /* Borde sutil dinámico */
+  border-radius: var(--bento-radius-md) !important;
+  background-color: var(--cl-card-bg) !important;
+  box-shadow: var(--cl-shadow-base) !important;
+  transition: all 0.3s ease;
+  overflow: hidden; /* Evita que los hijos rompan las esquinas curvas */
+}
+
+/* Tu efecto hover, ahora usando las variables de sombra dinámica */
+.hover-effect:hover, .bento-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--cl-shadow-hover) !important;
+}
+
+/* Botones Modernos */
+.btn {
+  border-radius: 50px !important;
+  padding: 8px 20px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease;
 }
