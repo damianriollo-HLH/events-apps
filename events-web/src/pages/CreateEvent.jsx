@@ -62,6 +62,10 @@ function CreateEvent() {
   // Lógica de Precio
   const [isFree, setIsFree] = useState(false);
   const [price, setPrice] = useState('');
+  /** 
+  @type {string} externalLink - Almacena la URL oficial de venta si el evento es de pago.
+  */
+  const [externalLink, setExternalLink] = useState('');
 
   const [capacity, setCapacity] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -106,6 +110,10 @@ function CreateEvent() {
     formData.append('capacity', capacity);
     formData.append('category_id', categoryId);
     if (image) formData.append('image', image);
+    // Solo enviamos el external_link si el evento NO es fratis y si el usuario escribió algo.
+    if (!isFree && externalLink.trim() !== '') {
+        formData.append('external_link', externalLink);
+    }
 
     try {
         const response = await fetch('http://127.0.0.1:8000/api/events', {
@@ -218,21 +226,74 @@ function CreateEvent() {
                     </div>
                     <div className="col-md-6 mb-3">
                         <label className="form-label fw-bold">Aforo Máximo *</label>
-                        <input type="number" className="form-control" min="1" value={capacity} onChange={e => setCapacity(e.target.value)} required />
+                        <input 
+                            type="number" 
+                            className="form-control" min="1" value={capacity} onChange={e => setCapacity(e.target.value)} required />
                     </div>
                 </div>
 
+                {/* --- BLOQUE MODIFICADO: PRECIO Y ENLACE EXTERNO --- */}
                 <div className="p-3 rounded border mb-5 text-body shadow-sm">
                     <div className="form-check form-switch mb-3">
-                        <input className="form-check-input fs-5 border-secondary" type="checkbox" role="switch" id="freeSwitch" checked={isFree} onChange={(e) => { setIsFree(e.target.checked); if(e.target.checked) setPrice(''); }} />
+                        <input 
+                            className="form-check-input fs-5 border-secondary" 
+                            type="checkbox" 
+                            role="switch" 
+                            id="freeSwitch" 
+                            checked={isFree} 
+                            onChange={(e) => { 
+                                setIsFree(e.target.checked); 
+                                if(e.target.checked) {
+                                    setPrice(''); 
+                                    setExternalLink(''); // <-- ¡AQUÍ LIMPIAMOS EL ESTADO!
+                                }
+                            }} 
+                        />
                         <label className="form-check-label fw-bold text-success fs-5 ms-2" htmlFor="freeSwitch">
                             ¡Entrada Gratuita!
                         </label>
                     </div>
+                    
+                    {/* Renderizamos Precio y Enlace SOLO si NO es gratis */}
                     {!isFree && (
-                        <div className="input-group" style={{maxWidth: '300px'}}>
-                            <span className="input-group-text fw-bold">Precio $</span>
-                            <input type="number" className="form-control form-control-lg text-success fw-bold" min="1" step="0.01" value={price} onChange={e => setPrice(e.target.value)} required={!isFree} placeholder="0.00" />
+                        <div className="row g-3 align-items-start">
+                            {/* Input de Precio */}
+                            <div className="col-md-4">
+                                <label className="form-label fw-bold small">Precio estimado $</label>
+                                <div className="input-group">
+                                    <span className="input-group-text fw-bold">$</span>
+                                    <input 
+                                        type="number" 
+                                        className="form-control text-success fw-bold" 
+                                        min="1" 
+                                        step="0.01" 
+                                        value={price} 
+                                        onChange={e => setPrice(e.target.value)} 
+                                        required={!isFree} 
+                                        placeholder="0.00" 
+                                    />
+                                </div>
+                            </div>
+
+                            {/* NUEVO: Input de Enlace Externo (Esto es lo que faltaba) */}
+                            <div className="col-md-8">
+                                <label className="form-label fw-bold small">
+                                    Enlace de compra oficial (Opcional)
+                                </label>
+                                <div className="input-group">
+                                    <span className="input-group-text">🔗</span>
+                                    <input 
+                                        type="url" 
+                                        className="form-control" 
+                                        value={externalLink} 
+                                        onChange={e => setExternalLink(e.target.value)} 
+                                        placeholder="https://www.ticketmaster.es/..." 
+                                    />
+                                </div>
+                                <div className="form-text small">
+                                    Si gestionas la venta en otra web, pega el enlace aquí.
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

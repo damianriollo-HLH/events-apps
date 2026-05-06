@@ -58,6 +58,7 @@ function EditEvent() {
   
   const [isFree, setIsFree] = useState(false);
   const [price, setPrice] = useState('');
+  const [externalLink, setExternalLink] = useState('');
   
   const [capacity, setCapacity] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -98,6 +99,10 @@ function EditEvent() {
           } else {
               setIsFree(false);
               setPrice(data.price);
+          }
+          //Rellenar el enlace externo si existe en la BBDD
+          if (data.external_link) {
+              setExternalLink(data.external_link);
           }
 
           // Rellenar Fechas (Separando YYYY-MM-DD de HH:MM)
@@ -152,6 +157,11 @@ function EditEvent() {
     if (finalEndAt) formData.append('end_at', finalEndAt);
     formData.append('location', finalLocation);
     formData.append('price', isFree ? 0 : price);
+    if (isFree || !externalLink) {
+        formData.append('external_link', '');
+    } else {
+        formData.append('external_link', externalLink);
+    }
     formData.append('capacity', capacity);
     formData.append('category_id', categoryId);
     if (image) formData.append('image', image);
@@ -283,7 +293,9 @@ function EditEvent() {
                     </div>
                     <div className="col-md-6 mb-3">
                         <label className="form-label fw-bold">Aforo Máximo *</label>
-                        <input type="number" className="form-control" min="1" value={capacity} onChange={e => setCapacity(e.target.value)} required />
+                        <input 
+                            type="number" 
+                            className="form-control" min="1" value={capacity} onChange={e => setCapacity(e.target.value)} required />
                     </div>
                 </div>
 
@@ -297,7 +309,14 @@ function EditEvent() {
                     {!isFree && (
                         <div className="input-group" style={{maxWidth: '300px'}}>
                             <span className="input-group-text fw-bold">Precio $</span>
-                            <input type="number" className="form-control form-control-lg text-success fw-bold" min="1" step="0.01" value={price} onChange={e => setPrice(e.target.value)} required={!isFree} placeholder="0.00" />
+                            <input 
+                            type="number" 
+                            className="form-control form-control-lg text-success fw-bold" 
+                            min="1" 
+                            step="0.01" 
+                            value={price} 
+                            onChange={e => setPrice(e.target.value)} required={!isFree} 
+                            placeholder="0.00" />
                         </div>
                     )}
                 </div>

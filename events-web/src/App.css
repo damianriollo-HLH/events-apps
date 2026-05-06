@@ -86,6 +86,8 @@ h1, h2, h3, h4, h5 {
   overflow: hidden; /* Evita que los hijos rompan las esquinas curvas */
 }
 
+.hover-underline:hover { text-decoration: underline !important; }
+
 /* Tu efecto hover, ahora usando las variables de sombra dinámica */
 .hover-effect:hover, .bento-card:hover {
   transform: translateY(-5px);

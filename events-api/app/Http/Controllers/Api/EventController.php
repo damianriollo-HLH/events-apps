@@ -14,7 +14,7 @@ class EventController extends Controller
         $query = Event::with(['category', 'user'])
             ->where('status', 'published');
 
-        // 1. FILTRO DE TEXTO GENERAL (Título o Descripción)
+        // ... (Los filtros de texto, ciudad, categoría y fecha se quedan igual, están perfectos) ...
         if ($request->has('search') && $request->input('search') != '') {
             $searchTerm = $request->input('search');
             $query->where(function($q) use ($searchTerm) {
@@ -23,19 +23,15 @@ class EventController extends Controller
             });
         }
 
-        // 2. FILTRO ESPECÍFICO POR CIUDAD (¡NUEVO!)
-        // Como guardamos "Madrid | Teatro", si buscamos "Madrid" lo encontrará perfecto.
         if ($request->has('city') && $request->input('city') != '') {
             $city = $request->input('city');
             $query->where('location', 'LIKE', "%{$city}%");
         }
 
-        // 3. FILTRO POR CATEGORÍA
         if ($request->has('category') && $request->category != 'null') {
             $query->where('category_id', $request->input('category'));
         }
 
-        // 4. FILTRO POR FECHA
         if ($request->has('date')) {
             $dateFilter = $request->input('date');
             $today = now()->format('Y-m-d');
@@ -53,7 +49,7 @@ class EventController extends Controller
             }
         }
 
-        // 5. ORDENAMIENTO
+        // ORDENAMIENTO
         $sort = $request->input('sort', 'newest');
         
         switch ($sort) {
@@ -63,7 +59,6 @@ class EventController extends Controller
             case 'newest': default: $query->orderBy('created_at', 'desc'); break;
         }
 
-        // En lugar de get() (traer todos), usamos paginate(9) para traerlos de 9 en 9.
         $events = $query->paginate(9); 
         return response()->json($events);
     }
@@ -71,17 +66,17 @@ class EventController extends Controller
     // POST /api/events (Privado - Crear Evento)
     public function store(Request $request)
     {
-        //Validamos los datos
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'start_at' => 'required|date', // Fecha y hora de inicio
-            'end_at' => 'nullable|date|after_or_equal:start_at', // Fecha fin (opcional, pero debe ser posterior)
+            'start_at' => 'required|date',
+            'end_at' => 'nullable|date|after_or_equal:start_at',
             'price' => 'required|numeric',
             'category_id' => 'required|exists:categories,id',
             'capacity' => 'nullable|integer|min:1',
             'image' => 'nullable|image|max:2048',
-            'location' => 'nullable|string|max:255' 
+            'location' => 'nullable|string|max:255',
+            'external_link' => 'nullable|url|max:255' // <-- Validación del link externo
         ]);
 
         $imageUrl = null;
@@ -90,28 +85,41 @@ class EventController extends Controller
             $imageUrl = asset('storage/' . $path);
         }
 
-        // 3. Crear el evento
         $event = $request->user()->events()->create([
             'title' => $validated['title'],
             'description' => $validated['description'],
             'start_at' => $validated['start_at'],
-            'end_at' => $validated['end_at'] ?? $validated['start_at'], // Si no hay fin, ponemos la misma de inicio
+            'end_at' => $validated['end_at'] ?? $validated['start_at'],
             'price' => $validated['price'],
             'category_id' => $validated['category_id'],
             'capacity' => $validated['capacity'] ?? 50,
             'image' => $imageUrl,
             'location' => $validated['location'] ?? 'Online',
+            'external_link' => $validated['external_link'] ?? null, // <-- Guardamos el link
             'status' => 'published'
         ]);
 
         return response()->json($event, 201);
-        
     }
 
     // GET /api/events/{id} (Público - Detalle)
     public function show($id)
     {
-        $event = Event::with(['category', 'user', 'enrollments', 'comments.user'])
+        /**
+         * EAGER LOADING OPTIMIZADO:
+         * Cargamos la relación de comentarios usando un "Closure" (función anónima)
+         * para decirle a la base de datos que ya nos devuelva los comentarios ordenados
+         * por el más reciente, junto con el usuario (autor) de cada uno.
+         */
+        $event = Event::with([
+            'category', 
+            'user', 
+            'enrollments', 
+            'comments' => function($query) {
+                $query->orderBy('created_at', 'desc'); 
+            },
+            'comments.user' 
+        ])
             ->withAvg('ratings', 'stars')
             ->findOrFail($id);
             
@@ -150,25 +158,33 @@ class EventController extends Controller
         $validated = $request->validate([
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
-            'start_at' => 'required|date', // Fecha y hora de inicio
+            'start_at' => 'required|date',
             'end_at' => 'nullable|date|after_or_equal:start_at',
             'price' => 'nullable|numeric',
             'category_id' => 'nullable|exists:categories,id',
             'capacity' => 'nullable|integer|min:1',
             'image' => 'nullable|image|max:2048',
-            'location' => 'nullable|string|max:255'
+            'location' => 'nullable|string|max:255',
+            // OJO: 'nullable|url' permite que el usuario lo borre enviando un string vacío.
+            // A veces el frontend envía 'null' como string, así que lo manejamos abajo.
+            'external_link' => 'nullable|url|max:255' 
         ]);
 
         $dataToUpdate = [
             'title' => $validated['title'] ?? $event->title,
             'description' => $validated['description'] ?? $event->description,
             'start_at' => $validated['start_at'],
-            'end_at' => $validated['end_at'] ?? $validated['start_at'], // Si no hay fin, ponemos la misma de inicio
+            'end_at' => $validated['end_at'] ?? $validated['start_at'],
             'price' => $validated['price'] ?? $event->price,
             'category_id' => $validated['category_id'] ?? $event->category_id,
             'capacity' => $validated['capacity'] ?? $event->capacity,
             'location' => $validated['location'] ?? $event->location,
         ];
+
+        // Lógica segura para actualizar o borrar el external link
+        if ($request->has('external_link')) {
+             $dataToUpdate['external_link'] = $validated['external_link'];
+        }
 
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('events', 'public');
@@ -180,23 +196,24 @@ class EventController extends Controller
         return response()->json(['message' => 'Evento actualizado', 'event' => $event]);
     }
 
-    // POST /api/events/{id}/enroll (Privado - Comprar Entradas)
-    // ¡¡ESTA ES LA QUE TE FALTABA!!
+    // POST /api/events/{id}/enroll (Privado - RSVP / Apuntarse)
     public function enroll(Request $request, $id)
     {
         $event = Event::findOrFail($id);
         $user = $request->user();
 
-        $request->validate(['quantity' => 'required|integer|min:1|max:10']);
-        $quantity = $request->input('quantity');
+        // Simplificamos la validación. Por defecto asumimos 1 si no lo envían, 
+        // ya que el nuevo modelo es de RSVP personal, no de compra en bloque.
+        $request->validate(['quantity' => 'nullable|integer|min:1|max:10']);
+        $quantity = $request->input('quantity', 1);
 
         if ($event->capacity < $quantity) {
-            return response()->json(['message' => 'Solo quedan ' . $event->capacity . ' entradas.'], 400);
+            return response()->json(['message' => 'Aforo completo o insuficiente.'], 400);
         }
 
         $existing = $event->users()->where('user_id', $user->id)->first();
         if ($existing) {
-            return response()->json(['message' => 'Ya tienes entradas para este evento.'], 400);
+            return response()->json(['message' => 'Ya te has apuntado a este evento.'], 400);
         }
 
         $event->decrement('capacity', $quantity);
@@ -207,33 +224,21 @@ class EventController extends Controller
         ]);
 
         return response()->json([
-            'message' => "¡Has conseguido {$quantity} entradas con éxito!",
+            'message' => "¡Te has apuntado con éxito!",
             'remaining_capacity' => $event->capacity
         ]);
     }
 
-    // GET /api/my-enrollments (Eventos a los que voy)
+    // ... (El resto de tus métodos myEnrollments, myCreatedEvents, destroy, etc., se quedan igual) ...
+
+    // GET /api/my-enrollments
     public function myEnrollments()
     {
         $user = auth('sanctum')->user();
-        
-        // Usamos el modelo User para acceder a los eventos via la relación 'events()'
-        // Ojo: Asegúrate de tener la relación inversa en User.php si usas esto.
-        // PERO para no liarte, vamos a modificar tu query actual para incluir el PIVOT:
-        
-        $events = $user->eventsAttending()->with('category')->get();
-        // Nota: Para que esto funcione bien, necesitamos definir eventsAttending en User.php
-        // O mejor, mantengamos tu lógica pero accediendo al dato pivot.
-        
-        // LA FORMA MÁS FÁCIL SIN TOCAR MUCHO:
-        // Laravel devuelve el campo 'pivot' automáticamente si lo pusimos en el modelo.
-        // Simplemente nos aseguramos de usar la relación correcta.
-        
-        // Vamos a cambiar esta función por esta versión más limpia:
         return response()->json($user->eventsAttending()->with(['category', 'user'])->get());
     }
 
-    // GET /api/my-events (Eventos que yo organicé)
+    // GET /api/my-events
     public function myCreatedEvents()
     {
         $user = auth('sanctum')->user();
@@ -255,12 +260,9 @@ class EventController extends Controller
     // --- FUNCIONES DE ADMINISTRADOR ---
     public function adminIndex(Request $request)
     {
-        // 1. Comprobar si el usuario es admin
         if (!$request->user()->is_admin) {
             return response()->json(['message' => 'No tienes permiso para ver esto'], 403);
         }
-
-        // 2. Devolver TODOS los eventos (con el nombre de su creador) ordenados por fecha de creación
         $events = Event::with('user')->orderBy('created_at', 'desc')->get();
         return response()->json($events);
     }
@@ -270,13 +272,9 @@ class EventController extends Controller
         if (!$request->user()->is_admin) {
             return response()->json(['message' => 'No tienes permiso'], 403);
         }
-
         $event = Event::findOrFail($id);
-        
-        // Invertimos el valor (si era true pasa a false, y viceversa)
         $event->is_featured = !$event->is_featured; 
         $event->save();
-
         return response()->json([
             'message' => 'Estado destacado actualizado',
             'is_featured' => $event->is_featured

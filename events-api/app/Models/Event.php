@@ -28,6 +28,7 @@ class Event extends Model
         'location',
         'image',
         'price',
+        'external_link',
         'status',
         'address',
         'location_name',

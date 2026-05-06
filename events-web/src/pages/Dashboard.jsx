@@ -2,31 +2,33 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 /**
- * Componente Dashboard: Panel de control del usuario.
- * Arquitectura UI: Bento Grid Pattern.
- * Preparado para Dark Mode nativo.
- * * @returns {JSX.Element}
+ * Componente Dashboard
+ * Panel de control principal del usuario.
  */
 function Dashboard() {
   const [enrollments, setEnrollments] = useState([]);
   const [myEvents, setMyEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  
   const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [userImage, setUserImage] = useState(null);
+
   const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
-    const user = localStorage.getItem('user_name');
-    
     if (!token) {
         navigate('/login');
         return;
     }
-    setUserName(user);
+
+    setUserName(localStorage.getItem('user_name') || 'Usuario');
+    setUserImage(localStorage.getItem('user_image'));
+    setUserEmail(localStorage.getItem('user_email') || 'usuario@caralibre.com');
 
     const headers = { 'Authorization': `Bearer ${token}` };
 
-    // Hacemos las dos peticiones en paralelo para no bloquear la UI
     Promise.all([
         fetch('http://127.0.0.1:8000/api/my-enrollments', { headers }),
         fetch('http://127.0.0.1:8000/api/my-events', { headers })
@@ -39,9 +41,26 @@ function Dashboard() {
         setMyEvents(dataEvents);
         setLoading(false);
     })
-    .catch(err => console.error("Error cargando dashboard:", err));
+    .catch(err => console.error("Error cargando el Dashboard:", err));
 
   }, [navigate]);
+
+  const now = new Date();
+  const upcomingEnrollments = enrollments.filter(event => new Date(event.start_at) >= now);
+  const pastEnrollments = enrollments.filter(event => new Date(event.start_at) < now);
+
+  /**
+   * Extrae el mes y día para el recuadro difuminado.
+   * @param {string} dateString - Fecha ISO del backend
+   * @returns {Object} Objeto con el mes corto y el día
+   */
+  const getShortDate = (dateString) => {
+      const date = new Date(dateString);
+      return {
+          month: date.toLocaleString('es-ES', { month: 'short' }).toUpperCase(),
+          day: date.getDate()
+      };
+  };
 
   if (loading) return (
     <div className="d-flex justify-content-center align-items-center" style={{minHeight: '60vh'}}>
@@ -50,153 +69,165 @@ function Dashboard() {
   );
 
   return (
-    <div className="container py-4 mb-5">
-      
-      {/* ================================================= */}
-      {/* 1. CABECERA: BENTO GRID DE BIENVENIDA Y ESTADÍSTICAS */}
-      {/* ================================================= */}
-      <div className="row g-4 mb-5">
-        
-        {/* Caja Bento 1: Mensaje de Bienvenida (Ocupa la mitad en PC, todo en móvil) */}
-        <div className="col-12 col-lg-6">
-            <div className="bento-card h-100 p-4 p-md-5 d-flex flex-column justify-content-center bg-primary text-white border-0 shadow-lg" style={{ borderRadius: 'var(--bento-radius-lg)' }}>
-                <h2 className="fw-bold mb-2">👋 Hola, {userName}</h2>
-                <p className="fs-5 opacity-75 mb-0">Aquí tienes el resumen visual de tu actividad en CaraLibre.</p>
-            </div>
-        </div>
-
-        {/* Caja Bento 2: Estadística de Entradas (Ocupa un cuarto en PC) */}
-        <div className="col-6 col-lg-3">
-            <div className="bento-card h-100 p-4 d-flex flex-column justify-content-center align-items-center bg-body-tertiary">
-                <h3 className="display-4 fw-bold text-primary mb-1">{enrollments.length}</h3>
-                <span className="text-muted fw-semibold text-uppercase text-center" style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>
-                    Mis Entradas
-                </span>
-            </div>
-        </div>
-
-        {/* Caja Bento 3: Estadística de Eventos Creados (Ocupa un cuarto en PC) */}
-        <div className="col-6 col-lg-3">
-            <div className="bento-card h-100 p-4 d-flex flex-column justify-content-center align-items-center bg-body-tertiary">
-                <h3 className="display-4 fw-bold text-success mb-1">{myEvents.length}</h3>
-                <span className="text-muted fw-semibold text-uppercase text-center" style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>
-                    Eventos Creados
-                </span>
-            </div>
-        </div>
-
-      </div>
-
-      {/* ================================================= */}
-      {/* 2. CONTENIDO PRINCIPAL: LISTAS BENTO */}
-      {/* ================================================= */}
+    <div className="container py-5">
       <div className="row g-4">
         
-        {/* COLUMNA IZQUIERDA: MIS INSCRIPCIONES (ENTRADAS) */}
-        <div className="col-lg-6">
-            <div className="bento-card h-100 d-flex flex-column">
-                <div className="p-4 border-bottom border-light-subtle d-flex justify-content-between align-items-center">
-                    <h4 className="fw-bold text-primary m-0">🎟 Mis Entradas</h4>
+        {/* ================================================= */}
+        {/* COLUMNA IZQUIERDA: TARJETA DE PERFIL (col-lg-4)     */}
+        {/* ================================================= */}
+        <div className="col-lg-4 col-xl-3">
+            <div className="card shadow-sm border-0 h-100 rounded-4 text-center p-4">
+                <div className="mb-4">
+                    <img 
+                        src={userImage || `https://ui-avatars.com/api/?name=${userName}&background=random&size=150`} 
+                        alt="Perfil" 
+                        className="rounded-circle shadow-sm border border-3 border-primary-subtle"
+                        style={{ width: '120px', height: '120px', objectFit: 'cover' }}
+                    />
                 </div>
-                
-                <div className="p-4 flex-grow-1 bg-body">
-                    {enrollments.length === 0 ? (
-                        <div className="text-center py-5 bg-body-tertiary rounded-4">
-                            <span style={{fontSize: '3rem'}}>🎫</span>
-                            <p className="mt-3 text-muted">Aún no tienes planes.</p>
-                            <Link to="/" className="btn btn-outline-primary btn-sm rounded-pill">Explorar Eventos</Link>
-                        </div>
-                    ) : (
-                        <div className="d-flex flex-column gap-3">
-                            {enrollments.map(event => (
-                                /* Sub-tarjeta para cada evento, usa bg-body-tertiary para asegurar contraste en modo oscuro */
-                                <div key={event.id} className="p-3 bg-body-tertiary rounded-4 hover-effect transition-all border border-light-subtle">
-                                    <div className="d-flex align-items-center gap-3">
-                                        
-                                        {/* Fecha Calendario */}
-                                        <div className="text-center bg-body p-2 rounded-3 shadow-sm border border-light-subtle" style={{minWidth: '65px'}}>
-                                            <small className="d-block text-uppercase fw-bold text-danger" style={{fontSize: '11px'}}>
-                                                {new Date(event.start_at).toLocaleString('default', { month: 'short' })}
-                                            </small>
-                                            <strong className="d-block fs-4 lh-1 text-body">
-                                                {new Date(event.start_at).getDate()}
-                                            </strong>
-                                        </div>
-                                        
-                                        {/* Info */}
-                                        <div className="flex-grow-1 overflow-hidden">
-                                            <h6 className="fw-bold mb-1 text-truncate text-body">{event.title}</h6>
-                                            <div className="d-flex align-items-center gap-2 flex-wrap">
-                                                <small className="text-muted text-truncate" style={{maxWidth: '120px'}}>
-                                                    📍 {event.location ? event.location.split(' | ')[0] : 'Online'}
-                                                </small>
-                                                <span className="badge bg-primary rounded-pill">
-                                                    🎟 {event.pivot ? event.pivot.quantity : 1} Entradas
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Botón */}
-                                        <Link to={`/event/${event.id}`} className="btn btn-sm text-primary fw-bold text-nowrap">
-                                            Ver ➔
-                                        </Link>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                <h4 className="fw-bold text-body mb-1">{userName}</h4>
+                <p className="text-body-secondary small mb-3">{userEmail}</p>
+                <Link to="/profile" className="btn btn-outline-primary rounded-pill px-4 mb-4 fw-bold">
+                    Editar Perfil
+                </Link>
+
+                <hr className="text-secondary opacity-25" />
+
+                <div className="row text-center mt-3 g-2">
+                    <div className="col-4">
+                        <h4 className="fw-bold text-body m-0">{myEvents.length}</h4>
+                        <small className="text-body-secondary" style={{fontSize: '0.7rem'}}>Creaciones</small>
+                    </div>
+                    <div className="col-4 border-start border-end border-secondary-subtle">
+                        <h4 className="fw-bold text-body m-0">{upcomingEnrollments.length}</h4>
+                        <small className="text-body-secondary" style={{fontSize: '0.7rem'}}>Próximos</small>
+                    </div>
+                    <div className="col-4">
+                        <h4 className="fw-bold text-body m-0">{pastEnrollments.length}</h4>
+                        <small className="text-body-secondary" style={{fontSize: '0.7rem'}}>Asistidos</small>
+                    </div>
                 </div>
             </div>
         </div>
 
-        {/* COLUMNA DERECHA: EVENTOS QUE ORGANIZO */}
-        <div className="col-lg-6">
-            <div className="bento-card h-100 d-flex flex-column">
-                <div className="p-4 border-bottom border-light-subtle d-flex justify-content-between align-items-center">
-                    <h4 className="fw-bold text-success m-0">📅 Eventos Organizados</h4>
-                    <Link to="/create-event" className="btn btn-sm btn-success rounded-pill fw-bold px-3">+ Nuevo</Link>
+        {/* ================================================= */}
+        {/* COLUMNA DERECHA: CONTENIDO Y LISTAS (col-lg-8)      */}
+        {/* ================================================= */}
+        <div className="col-lg-8 col-xl-9">
+            
+            {/* --- SECCIÓN A: PRÓXIMOS EVENTOS (Con Glassmorphism) --- */}
+            <h4 className="fw-bold text-body mb-3">📅 Tus Próximos Eventos</h4>
+            {upcomingEnrollments.length === 0 ? (
+                <div className="alert alert-info border-0 rounded-4 shadow-sm bg-info bg-opacity-10 text-body">
+                    Aún no tienes planes próximos. <Link to="/" className="fw-bold alert-link">¡Descubre qué hacer!</Link>
                 </div>
-                
-                <div className="p-4 flex-grow-1 bg-body">
-                    {myEvents.length === 0 ? (
-                        <div className="text-center py-5 bg-body-tertiary rounded-4">
-                            <span style={{fontSize: '3rem'}}>✨</span>
-                            <p className="mt-3 text-muted">No has creado ningún evento.</p>
-                            <Link to="/create-event" className="btn btn-success btn-sm rounded-pill">Crear el primero</Link>
-                        </div>
-                    ) : (
-                        <div className="d-flex flex-column gap-3">
-                            {myEvents.map(event => (
-                                <div key={event.id} className="d-flex align-items-center justify-content-between p-3 bg-body-tertiary rounded-4 hover-effect transition-all border border-light-subtle">
-                                    <div className="d-flex align-items-center gap-3 overflow-hidden">
-                                        <img 
-                                            src={event.image || "https://placehold.co/100"} 
-                                            alt="thumb" 
-                                            className="rounded-3 shadow-sm" 
-                                            style={{width: '60px', height: '60px', objectFit: 'cover'}}
-                                        />
-                                        <div className="overflow-hidden">
-                                            <h6 className="fw-bold mb-1 text-body text-truncate">{event.title}</h6>
-                                            <small className="text-success fw-bold">${parseFloat(event.price) === 0 ? 'GRATIS' : event.price}</small>
-                                        </div>
+            ) : (
+                <div className="d-flex flex-column gap-3 mb-5">
+                    {upcomingEnrollments.slice(0, 3).map(event => (
+                        <div key={event.id} className="card border-0 shadow-sm rounded-4 hover-effect overflow-hidden bg-body">
+                            <div className="row g-0 align-items-center">
+                                {/* Contenedor de Imagen con position-relative */}
+                                <div className="col-md-4 col-5 position-relative p-0 h-100">
+                                    <img 
+                                        src={event.image || "https://placehold.co/300x200"} 
+                                        className="img-fluid w-100 h-100 rounded-start-4" 
+                                        style={{objectFit: 'cover', minHeight: '130px'}} 
+                                        alt="evento" 
+                                    />
+                                    {/* 🌟 EFECTO GLASSMORPHISM: Recuadro difuminado en el centro */}
+                                    <div className="position-absolute top-50 start-50 translate-middle d-flex flex-column align-items-center justify-content-center shadow-sm rounded-3"
+                                         style={{
+                                             background: 'rgba(255, 255, 255, 0.75)', // Fondo blanco translúcido
+                                             backdropFilter: 'blur(6px)', // Efecto cristal (blur)
+                                             width: '55px',
+                                             height: '55px',
+                                             lineHeight: '1.1'
+                                         }}>
+                                        <small className="text-dark fw-bold" style={{fontSize: '0.75rem'}}>{getShortDate(event.start_at).month}</small>
+                                        <span className="text-dark fw-bolder fs-4">{getShortDate(event.start_at).day}</span>
                                     </div>
-                                    
-                                    <div className="d-flex gap-2 ms-2">
-                                        <Link to={`/event/${event.id}`} className="btn btn-sm btn-outline-secondary rounded-circle" style={{width: '32px', height: '32px', padding: '3px 0'}} title="Ver">
-                                            👁️
-                                        </Link>
-                                        <Link to={`/event/edit/${event.id}`} className="btn btn-sm btn-outline-primary rounded-circle" style={{width: '32px', height: '32px', padding: '3px 0'}} title="Editar">
+                                </div>
+                                <div className="col-md-6 col-5 p-3 px-4">
+                                    <h5 className="fw-bold mb-1 text-truncate text-body">{event.title}</h5>
+                                    <small className="text-body-secondary">📍 {event.location?.split(' | ')[0] || 'Online'}</small>
+                                </div>
+                                <div className="col-md-2 col-2 text-center p-2">
+                                    <Link to={`/event/${event.id}`} className="btn btn-primary rounded-circle d-flex justify-content-center align-items-center mx-auto shadow-sm" style={{width: '45px', height: '45px'}}>
+                                        ➔
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* --- SECCIÓN B: LISTAS SECUNDARIAS (Boceto exacto) --- */}
+            <div className="row g-4">
+                
+                {/* LISTA 1: HISTORIAL DE ENTRADAS */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm border-0 rounded-4 h-100">
+                        <div className="card-header bg-transparent border-bottom-0 pt-4 pb-2">
+                            <h5 className="fw-bold text-primary m-0">🎟 Historial de Entradas</h5>
+                        </div>
+                        <div className="card-body p-3 overflow-y-auto" style={{ maxHeight: '400px' }}>
+                            {enrollments.length === 0 ? (
+                                <p className="text-body-secondary text-center my-4">No hay historial.</p>
+                            ) : (
+                                enrollments.map(event => (
+                                    /* 🔥 Diseño Cajas Alargadas (Rounded-pill-like) */
+                                    <div key={event.id} className="d-flex align-items-center justify-content-between p-2 mb-3 border border-secondary-subtle rounded-4 bg-body shadow-sm hover-effect">
+                                        <div className="d-flex align-items-center gap-3 overflow-hidden w-75">
+                                            <img src={event.image || "https://placehold.co/100x60"} alt="thumb" className="rounded-3 object-fit-cover" style={{width: '60px', height: '45px'}} />
+                                            <div className="text-truncate">
+                                                <h6 className="fw-bold mb-0 text-body text-truncate">{event.title}</h6>
+                                                <small className="text-body-secondary">{new Date(event.start_at).toLocaleDateString()}</small>
+                                            </div>
+                                        </div>
+                                        <Link to={`/event/${event.id}`} className="text-decoration-none text-primary fw-bold small pe-3">Ver</Link>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* LISTA 2: EVENTOS ORGANIZADOS */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm border-0 rounded-4 h-100">
+                        <div className="card-header bg-transparent border-bottom-0 pt-4 pb-2 d-flex justify-content-between align-items-center">
+                            <h5 className="fw-bold text-success m-0">🛠 Organizados</h5>
+                            <Link to="/create-event" className="btn btn-sm btn-success rounded-pill fw-bold px-3">+ Nuevo</Link>
+                        </div>
+                        <div className="card-body p-3 overflow-y-auto" style={{ maxHeight: '400px' }}>
+                            {myEvents.length === 0 ? (
+                                <p className="text-body-secondary text-center my-4">No has creado eventos.</p>
+                            ) : (
+                                myEvents.map(event => (
+                                    /* 🔥 Diseño Cajas Alargadas */
+                                    <div key={event.id} className="d-flex align-items-center justify-content-between p-2 mb-3 border border-secondary-subtle rounded-4 bg-body shadow-sm hover-effect">
+                                        <div className="d-flex align-items-center gap-3 overflow-hidden w-75">
+                                            <img src={event.image || "https://placehold.co/100x60"} alt="thumb" className="rounded-3 object-fit-cover" style={{width: '60px', height: '45px'}} />
+                                            <div className="text-truncate">
+                                                <h6 className="fw-bold mb-0 text-body text-truncate">{event.title}</h6>
+                                                <small className={event.capacity <= 0 ? "text-danger fw-bold" : "text-success fw-bold"}>
+                                                    {event.capacity > 0 ? 'Activo' : 'Agotado'}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <Link to={`/event/edit/${event.id}`} className="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center me-2" style={{width: '35px', height: '35px'}} title="Editar">
                                             ✏️
                                         </Link>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
-                    )}
+                    </div>
                 </div>
+
             </div>
         </div>
-
       </div>
     </div>
   );

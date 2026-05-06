@@ -19,8 +19,11 @@ function Navbar() {
   };
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark shadow-sm" 
-         style={{ background: 'linear-gradient(90deg, #4b6cb7 0%, #182848 100%)' }}>
+    <nav className="navbar navbar-expand-lg navbar-dark shadow-sm sticky-top" 
+         style={{ 
+             background: 'linear-gradient(90deg, #4b6cb7 0%, #182848 100%)',
+             zIndex: 1030 
+         }}>
       <div className="container">
         
         <Link 
