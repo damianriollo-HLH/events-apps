@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use Illuminate\Http\Request;
+use App\Notifications\EventEnrolledNotification;
+use App\Notifications\EventCreatedNotification;
 
 class EventController extends Controller
 {
@@ -98,6 +100,11 @@ class EventController extends Controller
             'external_link' => $validated['external_link'] ?? null, // <-- Guardamos el link
             'status' => 'published'
         ]);
+        // 🔥 Notificar al creador (Si tiene los mails activos)
+        $user = $request->user();
+        if ($user->email_notifications) {
+            $user->notify(new EventCreatedNotification($event));
+        }
 
         return response()->json($event, 201);
     }
@@ -127,6 +134,7 @@ class EventController extends Controller
         $userRating = 0;
         $isEnrolled = false;
         $canEdit = false;
+        $isLiked = false;
 
         if ($user) {
             $existingRating = $event->ratings()->where('user_id', $user->id)->first();
@@ -137,10 +145,13 @@ class EventController extends Controller
             if ($user->id === $event->user_id || $user->role === 'admin') {
                 $canEdit = true;
             }
+            // Comprobamos si tiene el like
+            $isLiked = $event->likes()->where('user_id', $user->id)->exists();
         }
 
         $event->user_rating = $userRating;
         $event->is_enrolled = $isEnrolled;
+        $event->is_liked = $isLiked;
         $event->can_edit = $canEdit;
 
         return response()->json($event);
@@ -223,6 +234,12 @@ class EventController extends Controller
             'updated_at' => now()
         ]);
 
+        //LÓGICA DE NOTIFICACIONES (Con validación de privacidad)
+        // Verificamos si la columna 'email_notifications' de la DB está en 1 (true)
+        if ($user->email_notifications) {
+            $user->notify(new EventEnrolledNotification($event));
+        }
+
         return response()->json([
             'message' => "¡Te has apuntado con éxito!",
             'remaining_capacity' => $event->capacity
@@ -255,6 +272,20 @@ class EventController extends Controller
         }
         $event->delete();
         return response()->json(['message' => 'Eliminado']);
+    }
+
+    // GET /api/my-favorites (Eventos que me gustan)
+    public function myFavorites()
+    {
+        $user = auth('sanctum')->user();
+        
+        // Técnica Senior (whereHas): Buscamos todos los eventos que 
+        // tengan un registro en la tabla 'likes' con el ID de nuestro usuario.
+        $events = Event::whereHas('likes', function($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })->with(['category', 'user'])->get();
+
+        return response()->json($events);
     }
 
     // --- FUNCIONES DE ADMINISTRADOR ---

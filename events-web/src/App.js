@@ -1,6 +1,8 @@
 // src/App.js
 import { Routes, Route } from 'react-router-dom'; 
 import AdminPanel from './pages/AdminPanel';
+//Librería que mejora los alert ()
+import { Toaster } from 'react-hot-toast';
 
 // --- COMPONENTES DE DISEÑO (LAYOUT) ---
 import Navbar from './components/Navbar'; 
@@ -26,6 +28,17 @@ function App() {
   return (
     // Fragmento de React: No ensucia el DOM con divs innecesarios
     <>
+      {/*Ventana Emergente alert()*/}
+      <Toaster 
+        position="bottom-right" 
+        toastOptions={{
+          style: {
+            borderRadius: '10px',
+            background: '#333',
+            color: '#fff',
+          },
+        }} 
+      />
       {/* 1. BARRA DE NAVEGACIÓN SUPERIOR (Siempre visible) */}
       <Navbar />
 

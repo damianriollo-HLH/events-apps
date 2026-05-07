@@ -8,11 +8,15 @@ import { Link, useNavigate } from 'react-router-dom';
 function Dashboard() {
   const [enrollments, setEnrollments] = useState([]);
   const [myEvents, setMyEvents] = useState([]);
+  const [favorites, setFavorites] = useState([]); // <-- NUEVO: Estado para los favoritos
   const [loading, setLoading] = useState(true);
   
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userImage, setUserImage] = useState(null);
+
+  // Controla qué pestaña estamos viendo
+  const [activeTab, setActiveTab] = useState('entradas');
 
   const navigate = useNavigate();
 
@@ -29,16 +33,20 @@ function Dashboard() {
 
     const headers = { 'Authorization': `Bearer ${token}` };
 
+    // Añadimos la petición de favoritos al Promise.all
     Promise.all([
         fetch('http://127.0.0.1:8000/api/my-enrollments', { headers }),
-        fetch('http://127.0.0.1:8000/api/my-events', { headers })
+        fetch('http://127.0.0.1:8000/api/my-events', { headers }),
+        fetch('http://127.0.0.1:8000/api/my-favorites', { headers }) // <-- NUEVO: Pedimos los favoritos
     ])
-    .then(async ([resEnroll, resEvents]) => {
+    .then(async ([resEnroll, resEvents, resFavs]) => {
         const dataEnroll = await resEnroll.json();
         const dataEvents = await resEvents.json();
+        const dataFavs = resFavs.ok ? await resFavs.json() : []; // Evitamos errores si la ruta falla
         
         setEnrollments(dataEnroll);
         setMyEvents(dataEvents);
+        setFavorites(dataFavs); // <-- NUEVO: Guardamos los favoritos
         setLoading(false);
     })
     .catch(err => console.error("Error cargando el Dashboard:", err));
@@ -49,11 +57,6 @@ function Dashboard() {
   const upcomingEnrollments = enrollments.filter(event => new Date(event.start_at) >= now);
   const pastEnrollments = enrollments.filter(event => new Date(event.start_at) < now);
 
-  /**
-   * Extrae el mes y día para el recuadro difuminado.
-   * @param {string} dateString - Fecha ISO del backend
-   * @returns {Object} Objeto con el mes corto y el día
-   */
   const getShortDate = (dateString) => {
       const date = new Date(dateString);
       return {
@@ -111,11 +114,11 @@ function Dashboard() {
         </div>
 
         {/* ================================================= */}
-        {/* COLUMNA DERECHA: CONTENIDO Y LISTAS (col-lg-8)      */}
+        {/* COLUMNA DERECHA: CONTENIDO Y LISTAS                 */}
         {/* ================================================= */}
         <div className="col-lg-8 col-xl-9">
             
-            {/* --- SECCIÓN A: PRÓXIMOS EVENTOS (Con Glassmorphism) --- */}
+            {/* --- SECCIÓN A: PRÓXIMOS EVENTOS --- */}
             <h4 className="fw-bold text-body mb-3">📅 Tus Próximos Eventos</h4>
             {upcomingEnrollments.length === 0 ? (
                 <div className="alert alert-info border-0 rounded-4 shadow-sm bg-info bg-opacity-10 text-body">
@@ -126,7 +129,6 @@ function Dashboard() {
                     {upcomingEnrollments.slice(0, 3).map(event => (
                         <div key={event.id} className="card border-0 shadow-sm rounded-4 hover-effect overflow-hidden bg-body">
                             <div className="row g-0 align-items-center">
-                                {/* Contenedor de Imagen con position-relative */}
                                 <div className="col-md-4 col-5 position-relative p-0 h-100">
                                     <img 
                                         src={event.image || "https://placehold.co/300x200"} 
@@ -134,11 +136,10 @@ function Dashboard() {
                                         style={{objectFit: 'cover', minHeight: '130px'}} 
                                         alt="evento" 
                                     />
-                                    {/* 🌟 EFECTO GLASSMORPHISM: Recuadro difuminado en el centro */}
                                     <div className="position-absolute top-50 start-50 translate-middle d-flex flex-column align-items-center justify-content-center shadow-sm rounded-3"
                                          style={{
-                                             background: 'rgba(255, 255, 255, 0.75)', // Fondo blanco translúcido
-                                             backdropFilter: 'blur(6px)', // Efecto cristal (blur)
+                                             background: 'rgba(255, 255, 255, 0.75)',
+                                             backdropFilter: 'blur(6px)',
                                              width: '55px',
                                              height: '55px',
                                              lineHeight: '1.1'
@@ -162,50 +163,69 @@ function Dashboard() {
                 </div>
             )}
 
-            {/* --- SECCIÓN B: LISTAS SECUNDARIAS (Boceto exacto) --- */}
-            <div className="row g-4">
-                
-                {/* LISTA 1: HISTORIAL DE ENTRADAS */}
-                <div className="col-md-6">
-                    <div className="card shadow-sm border-0 rounded-4 h-100">
-                        <div className="card-header bg-transparent border-bottom-0 pt-4 pb-2">
-                            <h5 className="fw-bold text-primary m-0">🎟 Historial de Entradas</h5>
-                        </div>
-                        <div className="card-body p-3 overflow-y-auto" style={{ maxHeight: '400px' }}>
-                            {enrollments.length === 0 ? (
-                                <p className="text-body-secondary text-center my-4">No hay historial.</p>
-                            ) : (
-                                enrollments.map(event => (
-                                    /* 🔥 Diseño Cajas Alargadas (Rounded-pill-like) */
-                                    <div key={event.id} className="d-flex align-items-center justify-content-between p-2 mb-3 border border-secondary-subtle rounded-4 bg-body shadow-sm hover-effect">
-                                        <div className="d-flex align-items-center gap-3 overflow-hidden w-75">
-                                            <img src={event.image || "https://placehold.co/100x60"} alt="thumb" className="rounded-3 object-fit-cover" style={{width: '60px', height: '45px'}} />
-                                            <div className="text-truncate">
-                                                <h6 className="fw-bold mb-0 text-body text-truncate">{event.title}</h6>
-                                                <small className="text-body-secondary">{new Date(event.start_at).toLocaleDateString()}</small>
-                                            </div>
-                                        </div>
-                                        <Link to={`/event/${event.id}`} className="text-decoration-none text-primary fw-bold small pe-3">Ver</Link>
-                                    </div>
-                                ))
-                            )}
-                        </div>
+            {/* --- SECCIÓN B: LAS PESTAÑAS (TABS) --- */}
+            {/* Aquí hemos unificado el diseño en una sola tarjeta gigante */}
+            <div className="card shadow-sm border-0 rounded-4">
+                <div className="card-header bg-transparent border-bottom-0 pt-4 px-4">
+                    <div className="nav nav-pills gap-2">
+                        <button className={`nav-link rounded-pill fw-bold ${activeTab === 'entradas' ? 'active' : 'text-secondary'}`} onClick={() => setActiveTab('entradas')}>🎟 Entradas</button>
+                        <button className={`nav-link rounded-pill fw-bold ${activeTab === 'favoritos' ? 'active' : 'text-secondary'}`} onClick={() => setActiveTab('favoritos')}>❤️ Favoritos</button>
+                        <button className={`nav-link rounded-pill fw-bold ${activeTab === 'organizados' ? 'active' : 'text-secondary'}`} onClick={() => setActiveTab('organizados')}>🛠 Mis Eventos</button>
                     </div>
                 </div>
+                
+                <div className="card-body p-4 overflow-y-auto" style={{ maxHeight: '450px' }}>
+                    
+                    {/* 1. LÓGICA DE PESTAÑA: ENTRADAS */}
+                    {activeTab === 'entradas' && (
+                        enrollments.length === 0 ? (
+                            <p className="text-body-secondary text-center my-4">No hay historial de entradas.</p>
+                        ) : (
+                            enrollments.map(event => (
+                                <div key={event.id} className="d-flex align-items-center justify-content-between p-2 mb-3 border border-secondary-subtle rounded-4 bg-body shadow-sm hover-effect">
+                                    <div className="d-flex align-items-center gap-3 overflow-hidden w-75">
+                                        <img src={event.image || "https://placehold.co/100x60"} alt="thumb" className="rounded-3 object-fit-cover" style={{width: '60px', height: '45px'}} />
+                                        <div className="text-truncate">
+                                            <h6 className="fw-bold mb-0 text-body text-truncate">{event.title}</h6>
+                                            <small className="text-body-secondary">{new Date(event.start_at).toLocaleDateString()}</small>
+                                        </div>
+                                    </div>
+                                    <Link to={`/event/${event.id}`} className="text-decoration-none text-primary fw-bold small pe-3">Ver</Link>
+                                </div>
+                            ))
+                        )
+                    )}
 
-                {/* LISTA 2: EVENTOS ORGANIZADOS */}
-                <div className="col-md-6">
-                    <div className="card shadow-sm border-0 rounded-4 h-100">
-                        <div className="card-header bg-transparent border-bottom-0 pt-4 pb-2 d-flex justify-content-between align-items-center">
-                            <h5 className="fw-bold text-success m-0">🛠 Organizados</h5>
-                            <Link to="/create-event" className="btn btn-sm btn-success rounded-pill fw-bold px-3">+ Nuevo</Link>
-                        </div>
-                        <div className="card-body p-3 overflow-y-auto" style={{ maxHeight: '400px' }}>
-                            {myEvents.length === 0 ? (
-                                <p className="text-body-secondary text-center my-4">No has creado eventos.</p>
-                            ) : (
-                                myEvents.map(event => (
-                                    /* 🔥 Diseño Cajas Alargadas */
+                    {/* 2. LÓGICA DE PESTAÑA: FAVORITOS */}
+                    {activeTab === 'favoritos' && (
+                        favorites.length === 0 ? (
+                            <p className="text-body-secondary text-center my-4">No tienes eventos en favoritos aún.</p>
+                        ) : (
+                            favorites.map(event => (
+                                <div key={event.id} className="d-flex align-items-center justify-content-between p-2 mb-3 border border-secondary-subtle rounded-4 bg-body shadow-sm hover-effect">
+                                    <div className="d-flex align-items-center gap-3 overflow-hidden w-75">
+                                        <img src={event.image || "https://placehold.co/100x60"} alt="thumb" className="rounded-3 object-fit-cover" style={{width: '60px', height: '45px'}} />
+                                        <div className="text-truncate">
+                                            <h6 className="fw-bold mb-0 text-body text-truncate">{event.title}</h6>
+                                            <small className="text-body-secondary">📍 {event.location?.split(' | ')[0] || 'Online'}</small>
+                                        </div>
+                                    </div>
+                                    <Link to={`/event/${event.id}`} className="btn btn-outline-danger btn-sm rounded-pill fw-bold px-3">❤️ Ver</Link>
+                                </div>
+                            ))
+                        )
+                    )}
+
+                    {/* 3. LÓGICA DE PESTAÑA: ORGANIZADOS */}
+                    {activeTab === 'organizados' && (
+                        myEvents.length === 0 ? (
+                            <p className="text-body-secondary text-center my-4">No has organizado ningún evento.</p>
+                        ) : (
+                            <>
+                                <div className="text-end mb-3">
+                                    <Link to="/create-event" className="btn btn-sm btn-success rounded-pill fw-bold px-3">+ Nuevo Evento</Link>
+                                </div>
+                                {myEvents.map(event => (
                                     <div key={event.id} className="d-flex align-items-center justify-content-between p-2 mb-3 border border-secondary-subtle rounded-4 bg-body shadow-sm hover-effect">
                                         <div className="d-flex align-items-center gap-3 overflow-hidden w-75">
                                             <img src={event.image || "https://placehold.co/100x60"} alt="thumb" className="rounded-3 object-fit-cover" style={{width: '60px', height: '45px'}} />
@@ -220,13 +240,14 @@ function Dashboard() {
                                             ✏️
                                         </Link>
                                     </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
+                                ))}
+                            </>
+                        )
+                    )}
 
+                </div>
             </div>
+
         </div>
       </div>
     </div>

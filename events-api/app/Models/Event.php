@@ -87,7 +87,7 @@ class Event extends Model
     {
         return $this->hasMany(Rating::class);
     }
-
+    
     // Atributo virtual para saber si el usuario logueado le dio like
     // Se usa: $event->is_liked
     public function getIsLikedAttribute()

@@ -66,6 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-enrollments', [EventController::class, 'myEnrollments']); 
     // Eventos que yo organicé
     Route::get('/my-events', [EventController::class, 'myCreatedEvents']);   
+    Route::get('/my-favorites', [App\Http\Controllers\Api\EventController::class, 'myFavorites']);
 
     // --- INTERACCIÓN SOCIAL ---
     // Comentarios
@@ -75,6 +76,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Valoraciones (Estrellas)
     Route::post('/events/{id}/rate', [RatingController::class, 'store']);
 
-    // Likes (Si tienes este controlador, descoméntalo. Si no, déjalo así)
-    // Route::post('/events/{id}/like', [App\Http\Controllers\Api\LikeController::class, 'toggle']);
+    // Likes 
+    Route::post('/events/{id}/like', [App\Http\Controllers\Api\LikeController::class, 'toggle']);
 });

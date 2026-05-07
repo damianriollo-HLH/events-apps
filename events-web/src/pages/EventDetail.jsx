@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+//Reemplaza alert()
+import toast from 'react-hot-toast';
 // --- IMPORTACIONES DEL MAPA ---
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -34,6 +36,13 @@ function EventDetail() {
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
+  // --- ESTADOS PARA VALORACIONES ---
+  const [userRating, setUserRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0); // Para el efecto visual al pasar el ratón
+
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeProcessing, setLikeProcessing] = useState(false);
+
   /**
    * Envía un nuevo comentario a la API.
    * Si es exitoso, lo añade al estado local para evitar recargar la página (Optimistic UI).
@@ -66,8 +75,9 @@ function EventDetail() {
                 comments: [newComment, ...(prevEvent.comments || [])]
             }));
             setCommentText(''); // Limpiamos el textarea
+            toast.success('Comentario publicado'); // feedback al usuario
         } else {
-            alert('Error al publicar el comentario.');
+            toast.error('Error al publicar el comentario.');        
         }
     } catch (error) {
         console.error("Error posteando comentario:", error);
@@ -106,21 +116,35 @@ function EventDetail() {
     }
   };
 
-  // 1. CARGAR DATOS Y BUSCAR COORDENADAS
+// 1. CARGAR DATOS Y BUSCAR COORDENADAS
   useEffect(() => {
     const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     fetch(`http://127.0.0.1:8000/api/events/${id}`, { headers })
-      .then(res => res.json())
+      .then(res => {
+          if (!res.ok) throw new Error("Error cargando evento");
+          return res.json();
+      })
       .then(data => {
+        // Guardamos todo el objeto del evento
         setEvent(data);
+        
+        // Actualizamos los estados individuales con lo que responde la API
         setIsEnrolled(data.is_enrolled);
+        
+        // Seteamos la valoración que el usuario ya le dio (si existe)
+        // Esto hace que las estrellas aparezcan marcadas al cargar la página
+        setUserRating(data.user_rating || 0);
+
+        // Seteamos si el usuario le dio Like anteriormente
+        // Gracias al protected $appends = ['is_liked'] que pusimos en el Modelo Event.php
+        setIsLiked(data.is_liked || false);
+
         setLoading(false);
 
-        // MAGIA DEL MAPA: Si hay ubicación y no es "Online", buscamos sus coordenadas
+        // LÓGICA DEL MAPA (Mantenemos tu código igual)
         if (data.location && data.location !== 'Online') {
-            // Convertimos "Madrid | Calle X" a "Calle X, Madrid" para buscarlo mejor
             const searchQuery = data.location.split(' | ').reverse().join(', ');
             
             fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`)
@@ -159,11 +183,14 @@ function EventDetail() {
         const data = await response.json();
         
         if (response.ok) {
-            alert("¡Te has apuntado al evento correctamente! 📅");
+            // ANTES: alert("¡Te has apuntado al evento correctamente! 📅");
+            toast.success("¡Te has apuntado al evento correctamente! 📅");
             setIsEnrolled(true); 
         } else {
-            alert(data.message || "Error al intentar apuntarse.");
+            // ANTES: alert(data.message || "Error al intentar apuntarse.");
+            toast.error(data.message || "Aforo completo o error.");
         }
+
     } catch (error) {
         alert("Error de conexión");
     } finally {
@@ -181,6 +208,66 @@ function EventDetail() {
   const city = locationParts[0];
   const address = locationParts[1] || '';
 
+  /**
+   * Envía la valoración del usuario a la API.
+   * @param {number} stars - Número de estrellas (1-5)
+   */
+  const handleRate = async (stars) => {
+    if (!token) return toast.error("Debes iniciar sesión para valorar.");
+    
+    try {
+        const res = await fetch(`http://127.0.0.1:8000/api/events/${id}/rate`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ stars })
+        });
+
+        const data = await res.json();
+        
+        if (res.ok) {
+            setUserRating(data.user_rating);
+            // Actualizamos la media global en el objeto event para que se refleje al instante
+            setEvent(prev => ({ ...prev, ratings_avg_stars: data.new_average }));
+            toast.success('¡Gracias por tu valoración!'); // <-- Feedback visual
+        } else {
+            toast.error(data.message);
+        }
+    } catch (err) {
+        toast.error("Error de conexión");
+    }
+  };
+  /**
+ * Añade o quita el evento de favoritos.
+ */
+const handleToggleLike = async () => {
+    if (!token) return alert("Inicia sesión para añadir a favoritos.");
+    setLikeProcessing(true);
+
+    try {
+        const res = await fetch(`http://127.0.0.1:8000/api/events/${id}/like`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            setIsLiked(data.is_liked); // Actualizamos el estado con la respuesta del server
+            if (data.is_liked) {
+                toast.success('Añadido a favoritos ❤️');
+            } else {
+                toast.success('Quitado de favoritos 🤍');
+            }
+        }
+    } catch (error) {
+        console.error("Error toggling like:", error);
+    } finally {
+        setLikeProcessing(false);
+    }
+};
+
   return (
     <div className="container my-5 position-relative">
       <Link to="/" className="btn btn-outline-secondary mb-3">← Volver al inicio</Link>
@@ -194,7 +281,25 @@ function EventDetail() {
                     {event.is_featured && <span className="badge bg-warning text-dark mb-3 me-2 fs-6">⭐ Destacado</span>}
                     {isFree && <span className="badge bg-success mb-3 fs-6">¡Gratis!</span>}
                     
-                    <h1 className="card-title fw-bold mb-3">{event.title}</h1>
+                    {/* Título y Botón de Favorito en la misma línea */}
+                    <div className="d-flex justify-content-between align-items-start mb-3">
+                        <h1 className="card-title fw-bold m-0">{event.title}</h1>
+
+                        <button 
+                            onClick={handleToggleLike}
+                            disabled={likeProcessing}
+                            className={`btn rounded-circle shadow-sm d-flex align-items-center justify-content-center transition-transform hover-effect ${isLiked ? 'bg-danger-subtle text-danger' : 'bg-body text-secondary border'}`}
+                            style={{ 
+                                width: '45px', 
+                                height: '45px', 
+                                fontSize: '1.2rem',
+                                transition: 'all 0.3s ease'
+                            }}
+                            title={isLiked ? "Quitar de favoritos" : "Añadir a favoritos"}
+                        >
+                            {isLiked ? '❤️' : '🤍'}
+                        </button>
+                    </div>
                     
                     <div className="d-flex flex-wrap gap-4 text-muted mb-4 pb-4 border-bottom">
                         <div>
@@ -215,6 +320,46 @@ function EventDetail() {
                     <p className="card-text fs-5" style={{ whiteSpace: 'pre-line' }}>{event.description}</p>
                 </div>
             </div>
+            {/* INTERFAZ DE VALORACIÓN (ESTRELLAS) */}
+                <div className="bg-body-tertiary px-4 py-3 border-bottom border-secondary-subtle d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                    {/* Media Global */}
+                    <div className="d-flex align-items-center gap-2">
+                        <span className="fs-2 text-warning">★</span>
+                        <div>
+                            <h5 className="fw-bold m-0 text-body">
+                                {event.ratings_avg_stars ? parseFloat(event.ratings_avg_stars).toFixed(1) : 'Nuevo'}
+                                <span className="text-body-secondary fs-6 fw-normal ms-1">/ 5.0</span>
+                            </h5>
+                            <small className="text-body-secondary">Nota media del evento</small>
+                        </div>
+                    </div>
+
+                    {/* Voto del Usuario */}
+                    <div className="text-md-end">
+                        <small className="d-block text-body-secondary mb-1 fw-bold">
+                            {userRating > 0 ? 'Tu valoración:' : 'Valora este evento:'}
+                        </small>
+                        <div className="d-flex gap-1" onMouseLeave={() => setHoverRating(0)}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => handleRate(star)}
+                                    onMouseEnter={() => setHoverRating(star)}
+                                    className="btn btn-link p-0 text-decoration-none transition-transform hover-effect"
+                                    style={{ 
+                                        fontSize: '1.8rem', 
+                                        color: (hoverRating || userRating) >= star ? '#ffc107' : '#e4e5e9',
+                                        transform: hoverRating === star ? 'scale(1.2)' : 'scale(1)'
+                                    }}
+                                    disabled={!token}
+                                >
+                                    ★
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
 
            {/* --- ZONA SOCIAL: COMENTARIOS --- */}
             <div className="card shadow-sm border border-secondary-subtle mt-4 overflow-hidden rounded-4 mb-5 bg-body">
@@ -272,12 +417,12 @@ function EventDetail() {
                         </div>
                     )}
 
-                    {/* 2. CAJA PARA ESCRIBIR (Abajo, zona de acción) */}
+                   {/* 2. CAJA PARA ESCRIBIR (Abajo, zona de acción) */}
                     {token ? (
-                        /* Formulario: bg-body-secondary (Fondo más oscuro/contrastado para destacar) */
-                        <form onSubmit={handlePostComment} className="bg-body-secondary p-4 rounded-4 border border-secondary-subtle shadow-sm">
+                        /* Añadimos mx-auto y un style con maxWidth para que no se estire al infinito en PC */
+                        <form onSubmit={handlePostComment} className="bg-body-secondary p-4 rounded-4 border border-secondary-subtle shadow-sm mx-auto" style={{ maxWidth: '800px' }}>
                             <h6 className="fw-bold text-body mb-3">Añadir un comentario</h6>
-                            <div className="d-flex gap-3">
+                            <div className="d-flex gap-3 align-items-start">
                                 <img 
                                     src={localStorage.getItem('user_image') || `https://ui-avatars.com/api/?name=${localStorage.getItem('user_name')}&background=random`} 
                                     alt="Yo" 
@@ -286,7 +431,7 @@ function EventDetail() {
                                 />
                                 <div className="flex-grow-1">
                                     <textarea 
-                                        className="form-control border-secondary-subtle bg-body text-body shadow-none rounded-3" 
+                                        className="form-control border-secondary-subtle bg-body text-body shadow-sm rounded-3" 
                                         rows="3" 
                                         placeholder="Escribe tu opinión aquí..."
                                         value={commentText}
