@@ -187,6 +187,11 @@ function Home() {
     { id: 2, img: "/img/bannerTW.png", alt: "Nueva temporada Teatro Wagner" }
   ];
 
+  //Scroll to Top
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []); // Se ejecuta una sola vez al montar el componente
+
   /**
    * Efecto Inicial: Carga las categorías públicas y, si el usuario está logueado,
    * realiza llamadas concurrentes (Promise.all) para alimentar el menú lateral.

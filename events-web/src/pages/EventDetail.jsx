@@ -115,6 +115,11 @@ function EventDetail() {
         alert("Error de conexión al borrar.");
     }
   };
+  
+  //Scroll to Top
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []); // Se ejecuta una sola vez al montar el componente
 
 // 1. CARGAR DATOS Y BUSCAR COORDENADAS
   useEffect(() => {

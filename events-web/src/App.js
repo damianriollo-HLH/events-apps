@@ -19,6 +19,9 @@ import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 
+//Página Error 404
+import NotFound from './pages/NotFound';
+
 /**
  * Componente Raíz de la Aplicación CaraLibre.
  * Gestiona el Layout principal (Navbar y Footer) y el enrutamiento de las vistas.
@@ -58,6 +61,8 @@ function App() {
           <Route path="/create-event" element={<CreateEvent />} />  {/* Crear nuevo evento */}
           <Route path="/event/edit/:id" element={<EditEvent />} />  {/* Editar evento existente */}          
           <Route path="/admin" element={<AdminPanel />} />
+          {/*LA RUTA 404 SIEMPRE DEBE SER LA ÚLTIMA */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
 
