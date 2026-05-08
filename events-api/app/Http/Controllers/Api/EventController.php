@@ -267,11 +267,14 @@ class EventController extends Controller
     public function destroy(Request $request, $id)
     {
         $event = Event::findOrFail($id);
-        if ($event->user_id !== $request->user()->id && $request->user()->role !== 'admin') {
-            return response()->json(['message' => 'No permiso'], 403);
+        //Seguridad
+        // Verificamos si el usuario es el dueño O si es administrador usando 'is_admin'
+        if ($event->user_id !== $request->user()->id && !$request->user()->is_admin) {
+            return response()->json(['message' => 'No tienes permiso para realizar esta acción'], 403);
         }
+
         $event->delete();
-        return response()->json(['message' => 'Eliminado']);
+        return response()->json(['message' => 'Evento eliminado correctamente']);
     }
 
     // GET /api/my-favorites (Eventos que me gustan)
@@ -291,18 +294,12 @@ class EventController extends Controller
     // --- FUNCIONES DE ADMINISTRADOR ---
     public function adminIndex(Request $request)
     {
-        if (!$request->user()->is_admin) {
-            return response()->json(['message' => 'No tienes permiso para ver esto'], 403);
-        }
         $events = Event::with('user')->orderBy('created_at', 'desc')->get();
         return response()->json($events);
     }
 
     public function toggleFeature(Request $request, $id)
     {
-        if (!$request->user()->is_admin) {
-            return response()->json(['message' => 'No tienes permiso'], 403);
-        }
         $event = Event::findOrFail($id);
         $event->is_featured = !$event->is_featured; 
         $event->save();

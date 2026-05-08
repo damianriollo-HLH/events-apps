@@ -19,11 +19,19 @@ function Footer() {
           <div className="col-md-2 col-lg-2 col-xl-2 mx-auto mt-3">
             <h5 className="text-uppercase mb-4 fw-bold">Explora</h5>
             <p><Link to="/" className="text-white text-decoration-none">Inicio</Link></p>
+            <p><Link to="/about" className="text-white text-decoration-none">Quiénes Somos / Contacto</Link></p>
             <p><Link to="/login" className="text-white text-decoration-none">Ingresar</Link></p>
-            <p><Link to="/register" className="text-white text-decoration-none">Registro</Link></p>
           </div>
 
-          {/* COLUMNA 3: CONTACTO */}
+          {/* COLUMNA 3: LEGALES */}
+          <div className="col-lg-3 col-md-6 mb-4 mb-md-0">
+            <h5 className="text-uppercase mb-4 fw-bold">Legal</h5>
+            <p><Link to="/legal/privacidad" className="text-white text-decoration-none">Política de Privacidad</Link></p>
+            <p><Link to="/legal/cookies" className="text-white text-decoration-none">Política de Cookies</Link></p>
+            <p><Link to="/legal/terminos" className="text-white text-decoration-none">Términos de Uso</Link></p>
+          </div>
+
+          {/* COLUMNA 4: CONTACTO */}
           <div className="col-md-4 col-lg-3 col-xl-3 mx-auto mt-3">
             <h5 className="text-uppercase mb-4 fw-bold">Contacto</h5>
             <p><i className="fas fa-home mr-3"></i> Aspe, España</p>

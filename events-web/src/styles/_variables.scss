@@ -1,0 +1,15 @@
+// Definición de Colores y Tokens
+$primary-color: #4b6cb7;
+$dark-blue: #182848;
+$bento-radius: 1.5rem;
+$transition-smooth: all 0.3s ease;
+
+// Mixin para efectos de elevación (Reutilizable en todas las tarjetas)
+@mixin bento-shadow($is-hover: false) {
+  @if $is-hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  } @else {
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  }
+}

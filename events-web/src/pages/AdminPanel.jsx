@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import toast from 'react-hot-toast';
+
+
 function AdminPanel() {
+    const [showModal, setShowModal] = useState(false);
+    const [eventToDelete, setEventToDelete] = useState(null);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -61,6 +66,24 @@ function AdminPanel() {
         </div>
     );
 
+    // DELETE Evento
+    const deleteEvent = async (id) => {
+        const token = localStorage.getItem('auth_token');
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/api/events/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                setEvents(events.filter(ev => ev.id !== id)); // Sincronización [cite: 17]
+                toast.success("Evento eliminado con éxito"); // Tu toast actual
+            }
+        } catch (error) {
+            toast.error("Error de conexión");
+        }
+    };
+
     return (
         <div className="container mt-5 mb-5">
             <div className="d-flex justify-content-between align-items-center mb-4">
@@ -105,6 +128,13 @@ function AdminPanel() {
                                         <Link to={`/event/${event.id}`} className="btn btn-sm btn-outline-primary" target="_blank">
                                             Ver 👀
                                         </Link>
+                                        {/*botón de eliminar */}
+                                        <button 
+                                            onClick={() => { setEventToDelete(event); setShowModal(true); }} 
+                                            className="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3"
+                                        >
+                                            🗑️ Borrar
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -112,6 +142,37 @@ function AdminPanel() {
                     </table>
                 </div>
             </div>
+            {/* MODAL DE CONFIRMACIÓN MODERNO */}
+            {showModal && (
+                <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+                    <div className="modal-dialog modal-lg modal-dialog-scrollable mt-5 animate__animated animate__fadeInDown">
+                        <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
+                            <div className="modal-header border-0 pt-4 px-4">
+                                <h5 className="modal-title fw-bold fs-3">⚠️ Confirmar Eliminación</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                            </div>
+                            <div className="modal-body px-4 pb-4">
+                                <p className="fs-5 text-secondary">
+                                    Estás a punto de eliminar el evento: <br />
+                                    <strong className="text-dark">"{eventToDelete?.title}"</strong>
+                                </p>
+                                <p className="mb-0 text-danger fw-bold">Esta acción no se puede deshacer.</p>
+                            </div>
+                            <div className="modal-footer border-0 p-4 gap-3">
+                                <button className="btn btn-light rounded-pill px-4 fw-bold" onClick={() => setShowModal(false)}>
+                                    Cancelar
+                                </button>
+                                <button className="btn btn-danger rounded-pill px-5 fw-bold shadow" onClick={() => {
+                                    deleteEvent(eventToDelete.id);
+                                    setShowModal(false);
+                                }}>
+                                    🗑️ Eliminar permanentemente
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

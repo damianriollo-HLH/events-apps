@@ -11,7 +11,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js'; 
 
 // 2. IMPORTAMOS TUS ESTILOS PERSONALIZADOS (App.css)
-import './App.css'; 
+import './styles/main.scss'; 
 
 // 3. IMPORTAMOS EL ENRUTADOR Y COMPONENTES
 import { BrowserRouter } from 'react-router-dom';

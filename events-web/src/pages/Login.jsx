@@ -39,6 +39,9 @@ function Login() {
         // Guardamos el ID para saber quiénes somos al borrar comentarios
         localStorage.setItem('user_id', data.user.id); 
 
+        // Guardamos el rol (Laravel envia 1 para true y 0 para false)
+        localStorage.setItem('is_admin', data.user.is_admin ? '1' : '0');
+
         // Redirigimos a la página principal y recargamos para actualizar el menú
         window.location.href = '/';
       } else {

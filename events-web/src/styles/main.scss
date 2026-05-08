@@ -2,7 +2,7 @@
  * CARALIBRE - ESTILOS GLOBALES
  * Arquitectura: CSS Variables + Bootstrap 5.3+ Compatibility
  * ========================================================================== */
-
+@import 'variables';
 /* 1. IMPORTAR FUENTE MODERNA */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
@@ -73,26 +73,26 @@ h1, h2, h3, h4, h5 {
 }
 
 /* ==========================================================================
- * 5. COMPONENTES: BENTO CARDS Y BOTONES
+ * 5. COMPONENTES: BENTO CARDS Y BOTONES (REFACTORIZADO CON SCSS)
  * ========================================================================== */
 
-/* Adaptación de tu tarjeta original a la filosofía Bento */
 .card, .bento-card {
-  border: 1px solid var(--cl-border-subtle) !important; /* Borde sutil dinámico */
-  border-radius: var(--bento-radius-md) !important;
   background-color: var(--cl-card-bg) !important;
-  box-shadow: var(--cl-shadow-base) !important;
-  transition: all 0.3s ease;
-  overflow: hidden; /* Evita que los hijos rompan las esquinas curvas */
+  border-radius: $bento-radius !important; /* Usando la variable de _variables.scss */
+  border: 1px solid var(--cl-border-subtle) !important;
+  transition: $transition-smooth; /* Usando la variable de _variables.scss */
+  overflow: hidden;
+  
+  /* Usando el Mixin que creamos en _variables.scss para la sombra base */
+  @include bento-shadow(); 
+
+  /* NESTING: El hover se define dentro de la tarjeta */
+  &:hover {
+    @include bento-shadow(true); /* Usando el Mixin para la sombra hover */
+  }
 }
 
 .hover-underline:hover { text-decoration: underline !important; }
-
-/* Tu efecto hover, ahora usando las variables de sombra dinámica */
-.hover-effect:hover, .bento-card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--cl-shadow-hover) !important;
-}
 
 /* Botones Modernos */
 .btn {

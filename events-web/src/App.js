@@ -1,14 +1,15 @@
 // src/App.js
 import { Routes, Route } from 'react-router-dom'; 
-import AdminPanel from './pages/AdminPanel';
 //Librería que mejora los alert ()
 import { Toaster } from 'react-hot-toast';
 
 // --- COMPONENTES DE DISEÑO (LAYOUT) ---
 import Navbar from './components/Navbar'; 
 import Footer from './components/Footer'; 
-import './App.css'; // Estilos globales y variables CSS del Tema
-
+import './styles/main.scss';
+// ---PÁGINAS ADMIN ---
+import AdminPanel from './pages/AdminPanel';
+import AdminCategories from './pages/AdminCategories';
 // --- PÁGINAS (VISTAS) ---
 import Home from './pages/Home'; 
 import CreateEvent from './pages/CreateEvent';
@@ -18,6 +19,8 @@ import EditEvent from './pages/EditEvent';
 import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
+import AboutContact from './pages/AboutContact';
+import Legal from './pages/Legal';
 
 //Página Error 404
 import NotFound from './pages/NotFound';
@@ -54,13 +57,18 @@ function App() {
           <Route path="/event/:id" element={<EventDetail />} /> {/* Detalle de un evento */}
           <Route path="/login" element={<Login />} />         {/* Formulario de acceso */}
           <Route path="/register" element={<Register />} />   {/* Formulario de registro */}
+          <Route path="/about" element={<AboutContact />} />
+          <Route path="/legal/:documentType" element={<Legal />} />
 
           {/* RUTAS PRIVADAS (Requieren estar logueado) */}
           <Route path="/dashboard" element={<Dashboard />} />       {/* Panel de control */}
           <Route path="/profile" element={<Profile />} />           {/* Perfil de usuario */}
           <Route path="/create-event" element={<CreateEvent />} />  {/* Crear nuevo evento */}
           <Route path="/event/edit/:id" element={<EditEvent />} />  {/* Editar evento existente */}          
+          {/* Rutas Admin */}
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/admin/categories" element={<AdminCategories />} />
+          
           {/*LA RUTA 404 SIEMPRE DEBE SER LA ÚLTIMA */}
           <Route path="*" element={<NotFound />} />
         </Routes>

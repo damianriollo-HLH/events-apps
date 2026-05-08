@@ -41,9 +41,15 @@ Route::get('/events/{id}', [EventController::class, 'show']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
-    // Rutas exclusivas para el Administrador
-    Route::get('/admin/events', [App\Http\Controllers\Api\EventController::class, 'adminIndex']);
-    Route::put('/admin/events/{id}/feature', [App\Http\Controllers\Api\EventController::class, 'toggleFeature']);    
+    // --- RUTAS DE ADMINISTRADOR (Doble protección) ---
+    // Solo entran si están logueados Y si el AdminMiddleware da el OK
+    Route::middleware('admin')->group(function () {
+        Route::get('/admin/events', [EventController::class, 'adminIndex']);
+        Route::put('/admin/events/{id}/feature', [EventController::class, 'toggleFeature']);
+        // --- CRUD DE CATEGORÍAS ---
+        Route::apiResource('categories-admin', CategoryController::class)
+            ->parameters(['categories-admin' => 'id']);
+    });    
     
     // --- USUARIO ---
     Route::post('/logout', [AuthController::class, 'logout']);

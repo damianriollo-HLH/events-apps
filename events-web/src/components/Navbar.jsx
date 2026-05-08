@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useContext } from 'react';
-// IMPORTACIÓN CRÍTICA: Aquí traemos el contexto exportado en el paso anterior
+//Aquí traemos el contexto exportado
 import { ThemeContext } from '../context/ThemeProvider';
 
 function Navbar() {
@@ -8,6 +8,7 @@ function Navbar() {
   const token = localStorage.getItem('auth_token');
   const userName = localStorage.getItem('user_name');
   const userImage = localStorage.getItem('user_image');
+  const isAdmin = localStorage.getItem('is_admin') === '1';
 
   // Consumimos el contexto. Si ThemeContext no es undefined, esto funcionará perfecto.
   const { theme, toggleTheme } = useContext(ThemeContext);
@@ -103,7 +104,13 @@ function Navbar() {
                   </a>
                   <ul className="dropdown-menu dropdown-menu-end shadow-lg border-0" style={{ borderRadius: '15px' }}>
                     <li><Link className="dropdown-item py-2" to="/profile">👤 Mi Perfil</Link></li>
-                    <li><Link className="dropdown-item py-2 fw-bold text-danger" to="/admin">👑 Panel Admin</Link></li>
+                    {/* FILTRO DE SEGURIDAD VISUAL */}
+                    {isAdmin && (
+                        <>
+                            <li><Link className="dropdown-item py-2 fw-bold text-danger" to="/admin">👑 Panel Admin</Link></li>
+                            <li><Link className="dropdown-item py-2" to="/admin/categories">📂 Categorías</Link></li>
+                        </>
+                    )}
                     <li><Link className="dropdown-item py-2" to="/dashboard">📊 Dashboard</Link></li>
                     <li><Link className="dropdown-item py-2" to="/create-event">✨ Crear Evento</Link></li>
                     <li><hr className="dropdown-divider" /></li>
