@@ -2,21 +2,33 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\HasApiTokens; // IMPORTANTE: El motor de los Tokens
 
+/**
+ * =========================================================================
+ * MODELO: USER (Usuarios del Sistema)
+ * =========================================================================
+ * ¿Para qué sirve?: Es la entidad más importante de seguridad. Representa 
+ * a cualquier persona registrada en la plataforma (tanto clientes como admins).
+ * * Conceptos clave para la defensa:
+ * - Hereda de 'Authenticatable', no de 'Model', lo que le da poderes de login.
+ * - Usa Sanctum para la generación de Tokens (API).
+ */
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** * HasApiTokens: Permite emitir "pulseras VIP" (Tokens) para React.
+     * HasFactory: Permite usar Seeders para generar usuarios falsos.
+     * Notifiable: Permite enviar correos electrónicos (ej: EventCreatedNotification).
+     */
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
+     * ---------------------------------------------------------------------
+     * 1. ASIGNACIÓN MASIVA ($fillable)
+     * ---------------------------------------------------------------------
      */
     protected $fillable = [
         'name',
@@ -24,57 +36,68 @@ class User extends Authenticatable
         'password',
         'image',
         'email_notifications',
-        'is_admin',
+        'is_admin', // Define si es un administrador del sistema
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
+     * ---------------------------------------------------------------------
+     * 2. PROTECCIÓN DE DATOS SENSIBLES ($hidden)
+     * ---------------------------------------------------------------------
+     * Los atributos que deben ocultarse automáticamente cuando Laravel
+     * convierte este usuario en un JSON para enviarlo a React.
      */
     protected $hidden = [
-        'password',
+        'password', // JAMÁS se envía la contraseña al frontend
         'remember_token',
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
+     * ---------------------------------------------------------------------
+     * 3. CONVERSIONES DE TIPOS ($casts)
+     * ---------------------------------------------------------------------
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            // Le dice a Laravel que encripte/desencripte la contraseña automáticamente usando Hash
+            'password' => 'hashed', 
         ];
     }
 
-    // Un usuario puede crear muchos eventos
+    /**
+     * ---------------------------------------------------------------------
+     * 4. RELACIONES DEL USUARIO
+     * ---------------------------------------------------------------------
+     */
+
+    // 1:N - Un usuario puede CREAR/ORGANIZAR muchos eventos
     public function events() {
         return $this->hasMany(Event::class);
     }
 
-    // Un usuario puede inscribirse en muchos eventos
+    // 1:N - Un usuario puede realizar muchas INSCRIPCIONES (Apuntarse)
     public function enrollments() {
         return $this->hasMany(Enrollment::class);
     }
     
-    // Eventos a los que el usuario dio like
+    // N:M - Eventos a los que el usuario dio LIKE (Favoritos)
     public function likedEvents() {
         return $this->belongsToMany(Event::class, 'likes', 'user_id', 'event_id')->withTimestamps();
     }
     
+    // N:M - Eventos a los que el usuario ASISTE directamente
+    // Cruza la tabla enrollments para darnos directamente los objetos Event
     public function eventsAttending()
     {
         return $this->belongsToMany(Event::class, 'enrollments')
                     ->withPivot('quantity')
                     ->withTimestamps();
     }
-    // Un usuario puede tener muchos comentarios
-    /* (Este lo dejaremos comentado hasta que creemos el modelo Comment)
+    
+    // 1:N - Un usuario puede ESCRIBIR muchos comentarios
     public function comments() {
         return $this->hasMany(Comment::class);
     }
-    */
 }

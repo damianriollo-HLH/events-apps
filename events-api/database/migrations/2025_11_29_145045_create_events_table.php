@@ -19,6 +19,7 @@ return new class extends Migration
         $table->string('title');
         $table->string('slug')->nullable();
         $table->text('description');
+        $table->string('image')->nullable();
         $table->string('poster_url')->nullable();
         
         $table->dateTime('start_at');
@@ -27,6 +28,8 @@ return new class extends Migration
         $table->integer('capacity')->default(0);
         $table->decimal('price', 8, 2)->default(0);
         $table->string('status')->default('draft');
+        $table->string('external_link')->nullable();
+
         
         // Ubicación
         $table->string('location_name')->nullable();

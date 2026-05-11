@@ -6,7 +6,11 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 /**
- * Configuración del marcador personalizado para Leaflet.
+ * =========================================================================
+ * CONFIGURACIÓN LEAFLET (Solución a bug de iconos)
+ * =========================================================================
+ * React-Leaflet tiene un bug conocido donde no encuentra la ruta de las imágenes 
+ * de los marcadores por defecto al compilar. Aquí forzamos la ruta manual.
  */
 const customIcon = new L.Icon({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -16,42 +20,51 @@ const customIcon = new L.Icon({
 });
 
 /**
- * @component LocationPicker
- * @description Gestiona la interacción con el mapa para capturar coordenadas 
- * y resolver la dirección mediante geocodificación inversa.
+ * =========================================================================
+ * COMPONENTE HIJO: LOCATION PICKER (El Selector del Mapa)
+ * =========================================================================
+ * ¿Para qué sirve?: Escucha los clics en el mapa. Cuando el usuario hace clic,
+ * captura la latitud/longitud y hace una petición a OpenStreetMap para 
+ * traducir esas coordenadas en una dirección legible (Geocodificación Inversa).
  */
 function LocationPicker({ position, setPosition, setCity, setAddress }) {
     useMapEvents({
         click(e) {
             const { lat, lng } = e.latlng;
-            setPosition([lat, lng]); 
+            setPosition([lat, lng]); // Movemos la chincheta
 
+            // API Externa: Nominatim (OpenStreetMap) -> Traduce Lat/Lng a Texto
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
                 .then(res => res.json())
                 .then(data => {
                     const addressData = data.address;
+                    // Buscamos el nombre de la ciudad en distintos campos posibles
                     const foundCity = addressData.city || addressData.town || addressData.village || addressData.county || '';
                     const foundRoad = addressData.road || '';
                     const houseNumber = addressData.house_number || '';
                     
+                    // Actualizamos los inputs del formulario automáticamente
                     setCity(foundCity);
                     setAddress(`${foundRoad} ${houseNumber}`.trim() || data.display_name.split(',')[0]);
                 })
                 .catch(err => console.error("Error en geocodificación:", err));
         },
     });
+    // Solo dibuja el marcador si hay una posición seleccionada
     return position ? <Marker position={position} icon={customIcon} /> : null;
 }
 
 /**
- * @component CreateEvent
- * @description Vista principal para la creación de eventos con validación de servidor
- * y feedback mediante ventana emergente moderna.
+ * =========================================================================
+ * COMPONENTE PRINCIPAL: CREATE EVENT (Formulario de Creación)
+ * =========================================================================
  */
 function CreateEvent() {
   const navigate = useNavigate();
   
-  // Estados de datos del formulario
+  // -----------------------------------------------------------------------
+  // 1. ESTADOS DEL FORMULARIO
+  // -----------------------------------------------------------------------
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -60,23 +73,23 @@ function CreateEvent() {
   const [endTime, setEndTime] = useState(''); 
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
-  const [mapPosition, setMapPosition] = useState([38.3455, -0.7683]);
+  const [mapPosition, setMapPosition] = useState([38.3455, -0.7683]); // Coordenadas por defecto (Alicante)
   const [isFree, setIsFree] = useState(false);
   const [price, setPrice] = useState('');
   const [externalLink, setExternalLink] = useState('');
   const [capacity, setCapacity] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState(null); // Estado especial para la imagen física
 
-  // Estados de control de UI y validación
+  // Estados de control (UI)
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  /**
-   * Carga inicial de categorías.
-   */
+  // -----------------------------------------------------------------------
+  // 2. CARGA INICIAL (Fetch de Categorías)
+  // -----------------------------------------------------------------------
   useEffect(() => {
     fetch('http://127.0.0.1:8000/api/categories')
         .then(res => res.json())
@@ -84,24 +97,26 @@ function CreateEvent() {
         .catch(err => console.error("Error cargando categorías:", err));
   }, []);
 
+  // Función para capturar el archivo de imagen del input type="file"
   const handleImageChange = (e) => setImage(e.target.files[0]);
 
-  /**
-   * Procesa el envío del formulario al backend.
-   * Gestiona errores de validación y activa el modal de éxito.
-   */
+  // -----------------------------------------------------------------------
+  // 3. ENVÍO DEL FORMULARIO (Manejo de FormData)
+  // -----------------------------------------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setErrors({});
+    setErrors({}); // Reseteamos errores previos
 
+    // Formateamos las fechas y ubicación para que a Laravel le gusten
     const finalStartAt = (startDate && startTime) ? `${startDate} ${startTime}:00` : '';
     const finalEndAt = (endDate && endTime) ? `${endDate} ${endTime}:00` : null;
     const finalLocation = city && address ? `${city} | ${address}` : (city || address || 'Online');
 
     const token = localStorage.getItem('auth_token');
-    const formData = new FormData();
     
+    // ATENCIÓN: Usamos FormData en lugar de JSON para poder enviar la IMAGEN
+    const formData = new FormData();
     formData.append('title', title);
     formData.append('description', description);
     formData.append('start_at', finalStartAt);
@@ -110,7 +125,10 @@ function CreateEvent() {
     formData.append('price', isFree ? 0 : price);
     formData.append('capacity', capacity);
     formData.append('category_id', categoryId);
+    
+    // Solo añadimos la imagen si el usuario subió una
     if (image) formData.append('image', image);
+    
     if (!isFree && externalLink.trim() !== '') {
         formData.append('external_link', externalLink);
     }
@@ -118,16 +136,22 @@ function CreateEvent() {
     try {
         const response = await fetch('http://127.0.0.1:8000/api/events', {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-            body: formData
+            // OJO: No le ponemos 'Content-Type': 'application/json' porque FormData
+            // genera su propio Content-Type multipart/form-data automáticamente.
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Accept': 'application/json' 
+            },
+            body: formData // Enviamos el objeto FormData crudo
         });
 
         const data = await response.json();
         
         if (response.ok) {
-            // REQUISITO 2.2.5: Activamos el modal moderno en lugar de alert()
+            // Éxito: Mostramos el modal de celebración
             setShowSuccessModal(true);
         } else if (response.status === 422) {
+            // Error de validación: Laravel se queja de algún campo
             setErrors(data.errors);
             toast.error('Revisa los campos marcados.');
         } else {

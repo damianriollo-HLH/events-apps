@@ -3,19 +3,27 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue; // ¡Esto es la magia de las colas!
+use Illuminate\Contracts\Queue\ShouldQueue; // Magia para rendimiento (Colas)
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Models\Event;
 
+/**
+ * =========================================================================
+ * NOTIFICACIÓN: INSCRIPCIÓN (ENTRADA)
+ * =========================================================================
+ * ¿Para qué sirve?: Actúa como una entrada virtual. Se envía cuando un 
+ * usuario se apunta a un evento para confirmarle la fecha y lugar.
+ */
 class EventEnrolledNotification extends Notification implements ShouldQueue
 {
+    // Queueable permite que esta notificación se procese en las colas (Jobs)
     use Queueable;
 
     public $event;
 
     /**
-     * Recibimos el evento al que se acaba de apuntar.
+     * Recibimos el evento al que el usuario se acaba de apuntar.
      */
     public function __construct(Event $event)
     {
@@ -23,7 +31,7 @@ class EventEnrolledNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * Definimos por qué canales se enviará (en este caso, solo correo).
+     * Definimos que el canal de envío será el correo electrónico.
      */
     public function via(object $notifiable): array
     {
@@ -31,8 +39,7 @@ class EventEnrolledNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * Construimos el diseño del correo.
-     * Laravel transforma esto en un HTML muy elegante automáticamente.
+     * Construye el cuerpo del correo.
      */
     public function toMail(object $notifiable): MailMessage
     {
@@ -40,9 +47,11 @@ class EventEnrolledNotification extends Notification implements ShouldQueue
                     ->subject('🎟️ Tu entrada para: ' . $this->event->title)
                     ->greeting('¡Hola, ' . $notifiable->name . '!')
                     ->line('Te confirmamos que te has apuntado correctamente al evento **' . $this->event->title . '**.')
+                    // Gracias al casteo ($casts) en el modelo Event, start_at es un objeto 
+                    // Carbon de PHP y podemos usar ->format() directamente aquí.
                     ->line('📅 Fecha: ' . $this->event->start_at->format('d/m/Y H:i'))
                     ->line('📍 Ubicación: ' . $this->event->location)
-                    //puerto frontend de React 5173
+                    // URL apuntando al puerto de desarrollo del frontend de React (5173)
                     ->action('Ver detalles en CaraLibre', url('http://localhost:5173/event/' . $this->event->id))
                     ->line('¡Esperamos que lo disfrutes muchísimo!');
     }

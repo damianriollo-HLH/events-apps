@@ -1,21 +1,22 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Models\Event;
 
-// Ruta para ver el detalle de un evento (Pública)
-Route::get('/events/{id}', function ($id) {
-    // Buscamos el evento y cargamos el conteo de likes
-    // 'likes' se carga automáticamente por el $appends del modelo, 
-    // pero findOrFail asegura que si no existe dé error 404.
-    $event = Event::findOrFail($id);
-    
-    return view('events.show', ['event' => $event]);
-});
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+|
+| Este proyecto funciona como una API RESTful para un Frontend en React.
+| Todas las rutas de datos están en routes/api.php.
+| Aquí solo dejamos un mensaje de comprobación de estado (Health Check).
+|
+*/
 
-// Ruta temporal para listar eventos (para que puedas hacer clic y probar)
-Route::get('/events', function () {
-    $events = Event::all();
-    // Creamos una vista rápida lista (puedes mejorarla luego)
-    return view('welcome', ['events' => $events]); 
+Route::get('/', function () {
+    return response()->json([
+        'message' => '🚀 El Backend de CaraLibre está funcionando correctamente.',
+        'status' => 'OK',
+        'documentation' => 'Por favor, utiliza el Frontend en React (puerto 5173) para navegar.'
+    ]);
 });

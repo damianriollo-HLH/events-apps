@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-// --- IMPORTACIONES DEL MAPA ---
+// --- IMPORTACIONES DEL MAPA (Leaflet) ---
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import toast from 'react-hot-toast';
 
-// Arreglo para el icono por defecto del marcador en React
+// Configuración del icono de la chincheta (Corrección del bug de React-Leaflet)
 const customIcon = new L.Icon({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -13,7 +14,12 @@ const customIcon = new L.Icon({
     iconAnchor: [12, 41]
 });
 
-// --- SUB-COMPONENTE: EL CLIC EN EL MAPA ---
+/**
+ * =========================================================================
+ * COMPONENTE HIJO: LOCATION PICKER
+ * =========================================================================
+ * Geocodificación inversa: Traduce el clic en el mapa a una dirección en texto.
+ */
 function LocationPicker({ position, setPosition, setCity, setAddress }) {
     useMapEvents({
         click(e) {
@@ -37,11 +43,22 @@ function LocationPicker({ position, setPosition, setCity, setAddress }) {
     return position ? <Marker position={position} icon={customIcon} /> : null;
 }
 
+/**
+ * =========================================================================
+ * COMPONENTE PRINCIPAL: EDIT EVENT
+ * =========================================================================
+ * ¿Para qué sirve?: Permite al usuario modificar un evento existente.
+ * Reto principal: Desempaquetar los datos de Laravel (ej: fechas completas)
+ * en fragmentos más pequeños para los inputs de React.
+ */
 function EditEvent() {
+  // Extraemos el ID del evento de la URL (ej: /event/edit/5)
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // --- ESTADOS DEL FORMULARIO ---
+  // -----------------------------------------------------------------------
+  // 1. ESTADOS DEL FORMULARIO
+  // -----------------------------------------------------------------------
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   
@@ -51,8 +68,7 @@ function EditEvent() {
   const [endTime, setEndTime] = useState(''); 
 
   const [city, setCity] = useState('');
-  const [address, setAddress] = useState('');
-  
+  const [address, setAddress] = useState('');  
   // Estado para las coordenadas del mapa (Por defecto Aspe)
   const [mapPosition, setMapPosition] = useState([38.3455, -0.7683]); 
   
@@ -62,37 +78,41 @@ function EditEvent() {
   
   const [capacity, setCapacity] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [image, setImage] = useState(null);
-  const [currentImage, setCurrentImage] = useState(null); 
+  const [image, setImage] = useState(null);       // Nueva imagen (si sube una)
+  const [currentImage, setCurrentImage] = useState(null); // Imagen actual (para mostrarla)
 
+  // Estados de control (UI)
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(true); 
+  const [loadingData, setLoadingData] = useState(true); // Bloquea la UI hasta cargar los datos viejos
   const [error, setError] = useState(null);
 
   const token = localStorage.getItem('auth_token');
 
-  // --- 1. CARGAR DATOS DEL EVENTO Y CATEGORÍAS ---
+  // -----------------------------------------------------------------------
+  // 2. EFECTO DE MONTAJE (Cargar Datos Previos)
+  // -----------------------------------------------------------------------
   useEffect(() => {
-    // A. Cargar Categorías
+    // A. Cargar lista de categorías disponibles
     fetch('http://127.0.0.1:8000/api/categories')
         .then(res => res.json())
         .then(data => setCategories(data))
         .catch(err => console.error(err));
 
-    // B. Cargar datos del Evento para rellenar el formulario
+    // B. Cargar los datos específicos del evento a editar
     fetch(`http://127.0.0.1:8000/api/events/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
+          // Rellenamos los campos directos
           setTitle(data.title);
           setDescription(data.description);
           setCapacity(data.capacity);
           setCategoryId(data.category_id);
           setCurrentImage(data.image);
 
-          // Rellenar Precio
+          // Rellenar Precio: ¿Es gratis?
           if (parseFloat(data.price) === 0) {
               setIsFree(true);
               setPrice('');
@@ -100,29 +120,27 @@ function EditEvent() {
               setIsFree(false);
               setPrice(data.price);
           }
-          //Rellenar el enlace externo si existe en la BBDD
-          if (data.external_link) {
-              setExternalLink(data.external_link);
-          }
+          
+          if (data.external_link) setExternalLink(data.external_link);
 
-          // Rellenar Fechas (Separando YYYY-MM-DD de HH:MM)
+          // DESEMPAQUETADO DE FECHAS: Separar '2026-05-11 10:00:00' en Fecha y Hora
           if (data.start_at) {
-              setStartDate(data.start_at.substring(0, 10));
-              setStartTime(data.start_at.substring(11, 16));
+              setStartDate(data.start_at.substring(0, 10)); // Coge YYYY-MM-DD
+              setStartTime(data.start_at.substring(11, 16)); // Coge HH:MM
           }
           if (data.end_at) {
               setEndDate(data.end_at.substring(0, 10));
               setEndTime(data.end_at.substring(11, 16));
           }
 
-          // Rellenar Ubicación (Separando "Ciudad | Dirección")
+          // DESEMPAQUETADO DE UBICACIÓN: Separar "Ciudad | Dirección"
           if (data.location && data.location !== 'Online') {
               const parts = data.location.split(' | ');
               setCity(parts[0] || '');
               setAddress(parts[1] || '');
           }
 
-          setLoadingData(false);
+          setLoadingData(false); // Datos listos, apagamos el loader
       })
       .catch(err => {
           console.error(err);
@@ -134,21 +152,27 @@ function EditEvent() {
 
   const handleImageChange = (e) => setImage(e.target.files[0]);
 
-  // --- 2. ENVIAR FORMULARIO (GUARDAR CAMBIOS) ---
+  // -----------------------------------------------------------------------
+  // 3. ENVÍO DEL FORMULARIO (Actualización)
+  // -----------------------------------------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    // Unimos Fechas y Horas
+    // Volvemos a empaquetar fechas y ubicación para Laravel
     const finalStartAt = `${startDate} ${startTime}:00`;
     let finalEndAt = null;
     if (endDate && endTime) finalEndAt = `${endDate} ${endTime}:00`;
-
-    // Unimos Ubicación
     const finalLocation = city && address ? `${city} | ${address}` : (city || address || 'Online');
 
+    // Usamos FormData porque podría haber una nueva imagen adjunta
     const formData = new FormData();
+    
+    // === TRUCO MAESTRO ===
+    // HTML/FormData nativo no soporta el método PUT. 
+    // Engañamos a Laravel enviando un POST normal, pero le añadimos este campo oculto
+    // para que el Backend sepa que realmente queremos hacer un PUT (Update).
     formData.append('_method', 'PUT'); 
     
     formData.append('title', title);
@@ -164,11 +188,13 @@ function EditEvent() {
     }
     formData.append('capacity', capacity);
     formData.append('category_id', categoryId);
+    
+    // Si subió una foto nueva, la machacamos; si no, Laravel mantiene la vieja.
     if (image) formData.append('image', image);
 
     try {
         const response = await fetch(`http://127.0.0.1:8000/api/events/${id}`, {
-            method: 'POST', 
+            method: 'POST', // OJO: Es POST por el truco de arriba
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
@@ -179,8 +205,18 @@ function EditEvent() {
         const data = await response.json();
 
         if (response.ok) {
-            alert('¡Evento actualizado con éxito! ✏️');
-            navigate(`/event/${id}`); 
+            // Feedback visual elegante (Toast)
+            toast.success('¡Evento actualizado con éxito! ✏️', {
+                style: {
+                    borderRadius: '10px',
+                    background: '#1f2229',
+                    color: '#f8fafc',
+                },
+            });
+            // UX: Esperamos un segundo para que el usuario lea el mensaje
+            setTimeout(() => {
+                navigate(`/event/${id}`); 
+            }, 800);
         } else {
             setError(data.message || 'Error al actualizar el evento.');
             setLoading(false);
@@ -191,6 +227,7 @@ function EditEvent() {
     }
   };
 
+  // Loader de protección: Si los datos viejos no han cargado, no mostramos el formulario
   if (loadingData) return <div className="text-center mt-5"><div className="spinner-border text-primary"></div></div>;
 
   return (

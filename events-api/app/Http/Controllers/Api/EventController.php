@@ -8,15 +8,34 @@ use Illuminate\Http\Request;
 use App\Notifications\EventEnrolledNotification;
 use App\Notifications\EventCreatedNotification;
 
+/**
+ * =========================================================================
+ * EVENT CONTROLLER (Controlador Principal de Eventos)
+ * =========================================================================
+ * ¿Para qué sirve?: Es el corazón de CaraLibre. Gestiona el ciclo de vida 
+ * completo de los eventos: creación, búsqueda, visualización y edición.
+ * * * Conceptos clave:
+ * - API RESTful: Proporcionamos datos en JSON para que React los pinte.
+ * - Eager Loading: Optimizamos las consultas SQL para evitar el problema N+1.
+ * - Seguridad: Validamos quién puede editar o borrar cada evento.
+ */
 class EventController extends Controller
 {
-    // GET /api/events (Público - Con Buscador Avanzado)
+    /**
+     * ---------------------------------------------------------------------
+     * LISTAR EVENTOS CON BUSCADOR (Método: index) - PÚBLICO
+     * ---------------------------------------------------------------------
+     * ¿Qué hace?: Devuelve los eventos publicados. Implementa un motor de 
+     * búsqueda que filtra por texto, ciudad, categoría y fecha.
+     */
     public function index(Request $request)
     {
+        // 1. Iniciamos la consulta con Eager Loading ('with').
+        // Traemos la categoría y el usuario de golpe para ahorrar consultas a la BD.
         $query = Event::with(['category', 'user'])
             ->where('status', 'published');
 
-        // ... (Los filtros de texto, ciudad, categoría y fecha se quedan igual, están perfectos) ...
+        // 2. Filtro de búsqueda por texto (Título o Descripción)
         if ($request->has('search') && $request->input('search') != '') {
             $searchTerm = $request->input('search');
             $query->where(function($q) use ($searchTerm) {
@@ -25,15 +44,18 @@ class EventController extends Controller
             });
         }
 
+        // 3. Filtro por Ciudad (Busca dentro del campo 'location')
         if ($request->has('city') && $request->input('city') != '') {
             $city = $request->input('city');
             $query->where('location', 'LIKE', "%{$city}%");
         }
 
+        // 4. Filtro por Categoría
         if ($request->has('category') && $request->category != 'null') {
             $query->where('category_id', $request->input('category'));
         }
 
+        // 5. Filtro de Fecha (Hoy, Mañana, Esta Semana)
         if ($request->has('date')) {
             $dateFilter = $request->input('date');
             $today = now()->format('Y-m-d');
@@ -51,9 +73,8 @@ class EventController extends Controller
             }
         }
 
-        // ORDENAMIENTO
+        // 6. Ordenamiento dinámico según lo que el usuario elija en el select
         $sort = $request->input('sort', 'newest');
-        
         switch ($sort) {
             case 'price_asc': $query->orderBy('price', 'asc'); break;
             case 'price_desc': $query->orderBy('price', 'desc'); break;
@@ -61,13 +82,21 @@ class EventController extends Controller
             case 'newest': default: $query->orderBy('created_at', 'desc'); break;
         }
 
+        // 7. Paginación: Enviamos 9 eventos por página para que React los muestre.
         $events = $query->paginate(9); 
         return response()->json($events);
     }
 
-    // POST /api/events (Privado - Crear Evento)
+    /**
+     * ---------------------------------------------------------------------
+     * CREAR UN EVENTO (Método: store) - PRIVADO
+     * ---------------------------------------------------------------------
+     * ¿Qué hace?: Valida los datos recibidos (Multipart/FormData), guarda 
+     * la imagen en el storage y crea el registro en la base de datos.
+     */
     public function store(Request $request)
     {
+        // 1. Validar datos: Laravel comprueba tipos de datos y reglas de negocio.
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -78,15 +107,18 @@ class EventController extends Controller
             'capacity' => 'nullable|integer|min:1',
             'image' => 'nullable|image|max:2048',
             'location' => 'nullable|string|max:255',
-            'external_link' => 'nullable|url|max:255' // <-- Validación del link externo
+            'external_link' => 'nullable|url|max:255' 
         ]);
 
+        // 2. Gestión de la imagen promocional
         $imageUrl = null;
         if ($request->hasFile('image')) {
+            // Se guarda en storage/app/public/events y se genera una URL pública
             $path = $request->file('image')->store('events', 'public');
             $imageUrl = asset('storage/' . $path);
         }
 
+        // 3. Creación del evento asociado al usuario autenticado
         $event = $request->user()->events()->create([
             'title' => $validated['title'],
             'description' => $validated['description'],
@@ -97,10 +129,11 @@ class EventController extends Controller
             'capacity' => $validated['capacity'] ?? 50,
             'image' => $imageUrl,
             'location' => $validated['location'] ?? 'Online',
-            'external_link' => $validated['external_link'] ?? null, // <-- Guardamos el link
+            'external_link' => $validated['external_link'] ?? null,
             'status' => 'published'
         ]);
-        // 🔥 Notificar al creador (Si tiene los mails activos)
+
+        // 4. Sistema de Notificaciones: Enviamos un email al creador si lo tiene activado.
         $user = $request->user();
         if ($user->email_notifications) {
             $user->notify(new EventCreatedNotification($event));
@@ -109,27 +142,30 @@ class EventController extends Controller
         return response()->json($event, 201);
     }
 
-    // GET /api/events/{id} (Público - Detalle)
+    /**
+     * ---------------------------------------------------------------------
+     * VER DETALLES DEL EVENTO (Método: show) - PÚBLICO
+     * ---------------------------------------------------------------------
+     * ¿Qué hace?: Devuelve toda la información necesaria para pintar la 
+     * página 'EventDetail'. Incluye comentarios, media de estrellas y 
+     * el estado de la relación con el usuario que está mirando (like, etc).
+     */
     public function show($id)
     {
-        /**
-         * EAGER LOADING OPTIMIZADO:
-         * Cargamos la relación de comentarios usando un "Closure" (función anónima)
-         * para decirle a la base de datos que ya nos devuelva los comentarios ordenados
-         * por el más reciente, junto con el usuario (autor) de cada uno.
-         */
+        // EAGER LOADING MASIVO: Traemos el evento con todas sus relaciones anidadas.
         $event = Event::with([
             'category', 
             'user', 
             'enrollments', 
             'comments' => function($query) {
-                $query->orderBy('created_at', 'desc'); 
+                $query->orderBy('created_at', 'desc'); // Comentarios más recientes primero
             },
-            'comments.user' 
+            'comments.user' // Autor de cada comentario
         ])
-            ->withAvg('ratings', 'stars')
+            ->withAvg('ratings', 'stars') // SQL calcula la media de valoraciones al vuelo
             ->findOrFail($id);
             
+        // Identificamos al usuario (si está logueado) para calcular estados personalizados
         $user = request()->user('sanctum');
         $userRating = 0;
         $isEnrolled = false;
@@ -142,13 +178,14 @@ class EventController extends Controller
             
             $isEnrolled = $event->enrollments()->where('user_id', $user->id)->exists();
 
+            // Seguridad: Verificamos si el usuario tiene permisos de edición (dueño o admin)
             if ($user->id === $event->user_id || $user->role === 'admin') {
                 $canEdit = true;
             }
-            // Comprobamos si tiene el like
             $isLiked = $event->likes()->where('user_id', $user->id)->exists();
         }
 
+        // Inyectamos campos virtuales al objeto JSON para que React los lea fácilmente
         $event->user_rating = $userRating;
         $event->is_enrolled = $isEnrolled;
         $event->is_liked = $isLiked;
@@ -157,11 +194,16 @@ class EventController extends Controller
         return response()->json($event);
     }
 
-    // PUT /api/events/{id} (Privado - Editar)
+    /**
+     * ---------------------------------------------------------------------
+     * EDITAR EVENTO (Método: update) - PRIVADO
+     * ---------------------------------------------------------------------
+     */
     public function update(Request $request, $id)
     {
         $event = Event::findOrFail($id);
 
+        // Seguridad: Solo el dueño o un admin pueden editar
         if ($event->user_id !== $request->user()->id && $request->user()->role !== 'admin') {
             return response()->json(['message' => 'No tienes permiso'], 403);
         }
@@ -176,8 +218,6 @@ class EventController extends Controller
             'capacity' => 'nullable|integer|min:1',
             'image' => 'nullable|image|max:2048',
             'location' => 'nullable|string|max:255',
-            // OJO: 'nullable|url' permite que el usuario lo borre enviando un string vacío.
-            // A veces el frontend envía 'null' como string, así que lo manejamos abajo.
             'external_link' => 'nullable|url|max:255' 
         ]);
 
@@ -192,7 +232,6 @@ class EventController extends Controller
             'location' => $validated['location'] ?? $event->location,
         ];
 
-        // Lógica segura para actualizar o borrar el external link
         if ($request->has('external_link')) {
              $dataToUpdate['external_link'] = $validated['external_link'];
         }
@@ -207,14 +246,16 @@ class EventController extends Controller
         return response()->json(['message' => 'Evento actualizado', 'event' => $event]);
     }
 
-    // POST /api/events/{id}/enroll (Privado - RSVP / Apuntarse)
+    /**
+     * ---------------------------------------------------------------------
+     * APUNTARSE AL EVENTO (Método: enroll)
+     * ---------------------------------------------------------------------
+     */
     public function enroll(Request $request, $id)
     {
         $event = Event::findOrFail($id);
         $user = $request->user();
 
-        // Simplificamos la validación. Por defecto asumimos 1 si no lo envían, 
-        // ya que el nuevo modelo es de RSVP personal, no de compra en bloque.
         $request->validate(['quantity' => 'nullable|integer|min:1|max:10']);
         $quantity = $request->input('quantity', 1);
 
@@ -227,15 +268,16 @@ class EventController extends Controller
             return response()->json(['message' => 'Ya te has apuntado a este evento.'], 400);
         }
 
+        // Restamos el aforo de la base de datos
         $event->decrement('capacity', $quantity);
+        // Creamos la relación en la tabla pivote enrollments
         $event->users()->attach($user->id, [
             'quantity' => $quantity, 
             'created_at' => now(), 
             'updated_at' => now()
         ]);
 
-        //LÓGICA DE NOTIFICACIONES (Con validación de privacidad)
-        // Verificamos si la columna 'email_notifications' de la DB está en 1 (true)
+        // Notificación de asistencia por email
         if ($user->email_notifications) {
             $user->notify(new EventEnrolledNotification($event));
         }
@@ -245,17 +287,33 @@ class EventController extends Controller
             'remaining_capacity' => $event->capacity
         ]);
     }
+    
+    public function unenroll($id)
+    {
+        try {
+            // Buscamos la inscripción directamente en la tabla pivote
+            \DB::table('enrollments')
+                ->where('user_id', auth()->id())
+                ->where('event_id', $id)
+                ->delete();
 
-    // ... (El resto de tus métodos myEnrollments, myCreatedEvents, destroy, etc., se quedan igual) ...
+            return response()->json(['message' => 'Asistencia cancelada con éxito'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al cancelar: ' . $e->getMessage()], 500);
+        }
+    }
 
-    // GET /api/my-enrollments
+    /**
+     * ---------------------------------------------------------------------
+     * LISTADOS PERSONALES (Mis Inscripciones / Mis Eventos Creados)
+     * ---------------------------------------------------------------------
+     */
     public function myEnrollments()
     {
         $user = auth('sanctum')->user();
         return response()->json($user->eventsAttending()->with(['category', 'user'])->get());
     }
 
-    // GET /api/my-events
     public function myCreatedEvents()
     {
         $user = auth('sanctum')->user();
@@ -263,12 +321,16 @@ class EventController extends Controller
         return response()->json($events);
     }
     
-    // DELETE /api/events/{id}
+    /**
+     * ---------------------------------------------------------------------
+     * ELIMINAR EVENTO (Método: destroy)
+     * ---------------------------------------------------------------------
+     */
     public function destroy(Request $request, $id)
     {
         $event = Event::findOrFail($id);
-        //Seguridad
-        // Verificamos si el usuario es el dueño O si es administrador usando 'is_admin'
+        
+        // Solo el dueño o un admin pueden borrar
         if ($event->user_id !== $request->user()->id && !$request->user()->is_admin) {
             return response()->json(['message' => 'No tienes permiso para realizar esta acción'], 403);
         }
@@ -277,12 +339,17 @@ class EventController extends Controller
         return response()->json(['message' => 'Evento eliminado correctamente']);
     }
 
-    // GET /api/my-favorites (Eventos que me gustan)
+    /**
+     * ---------------------------------------------------------------------
+     * FAVORITOS (Método: myFavorites)
+     * ---------------------------------------------------------------------
+     * Usa la técnica 'whereHas' para buscar eventos que tengan likes del usuario.
+     */
     public function myFavorites()
     {
         $user = auth('sanctum')->user();
         
-        // Técnica Senior (whereHas): Buscamos todos los eventos que 
+        // whereHas: Buscamos todos los eventos que 
         // tengan un registro en la tabla 'likes' con el ID de nuestro usuario.
         $events = Event::whereHas('likes', function($query) use ($user) {
             $query->where('user_id', $user->id);
@@ -291,7 +358,11 @@ class EventController extends Controller
         return response()->json($events);
     }
 
-    // --- FUNCIONES DE ADMINISTRADOR ---
+    /**
+     * ---------------------------------------------------------------------
+     * ADMINISTRACIÓN (Panel Admin)
+     * ---------------------------------------------------------------------
+     */
     public function adminIndex(Request $request)
     {
         $events = Event::with('user')->orderBy('created_at', 'desc')->get();

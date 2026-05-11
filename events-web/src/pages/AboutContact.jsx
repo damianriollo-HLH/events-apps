@@ -1,14 +1,20 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import toast from 'react-hot-toast'; // Librería para alertas visuales bonitas
 
 /**
- * @component AboutContact
- * @description Vista informativa sobre la plataforma y formulario de contacto.
- * Implementa gestión de estados para el formulario y feedback visual mediante toasts.
+ * =========================================================================
+ * COMPONENTE: ABOUT / CONTACT (Quiénes Somos y Contacto)
+ * =========================================================================
+ * ¿Para qué sirve?: Es una vista mixta. Mitad informativa (sobre la app) 
+ * y mitad interactiva (formulario de contacto). 
+ * Demuestra el uso de "Componentes Controlados" en React y simulación de red.
  */
 function AboutContact() {
-  // Estado para los campos del formulario
+  // -----------------------------------------------------------------------
+  // 1. ESTADOS DEL FORMULARIO (Componentes Controlados)
+  // -----------------------------------------------------------------------
+  // Agrupamos todos los campos en un solo objeto para no tener 4 useStates separados.
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -16,39 +22,49 @@ function AboutContact() {
     mensaje: ''
   });
 
+  // Estado para la Experiencia de Usuario (UX): Evita doble clic al enviar
   const [enviando, setEnviando] = useState(false);
 
   /**
-   * Actualiza el estado local cuando el usuario escribe en los inputs.
+   * -----------------------------------------------------------------------
+   * 2. MANEJADOR DE CAMBIOS (Input Handler)
+   * -----------------------------------------------------------------------
+   * Esta función es mágica. Sirve para TODOS los inputs a la vez.
    */
   const manejarCambio = (e) => {
     setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
+      ...formData, // Spread Operator: Copia todo lo que ya estaba escrito
+      // Computa dinámicamente el nombre del input y actualiza su valor
+      [e.target.name]: e.target.value 
     });
   };
 
   /**
-   * Simula el envío del formulario al backend.
-   * Aplica validaciones básicas y feedback asíncrono.
+   * -----------------------------------------------------------------------
+   * 3. MANEJADOR DE ENVÍO (Submit Handler)
+   * -----------------------------------------------------------------------
    */
   const enviarFormulario = async (e) => {
-    e.preventDefault();
-    setEnviando(true);
+    e.preventDefault(); // Evita que la página se recargue (comportamiento de SPA)
+    setEnviando(true);  // Desactiva el botón
 
-    // Simulamos una demora de red (Petición Fetch ficticia)
+    // Simulamos una petición de red al Backend (Ficticia) para mejorar la UX.
+    // En un proyecto real, aquí iría un axios.post() hacia Laravel.
     setTimeout(() => {
+      // Feedback visual
       toast.success('¡Mensaje enviado con éxito! Te responderemos pronto.');
+      // Reseteamos el formulario vaciando el estado
       setFormData({ nombre: '', email: '', asunto: '', mensaje: '' });
+      // Volvemos a activar el botón
       setEnviando(false);
-    }, 1500);
+    }, 1500); // Tarda 1.5 segundos en ejecutarse
   };
 
   return (
     <div className="container py-5">
       <div className="row g-4">
         
-        {/* --- SECCIÓN: QUIÉNES SOMOS (ESTILO BENTO) --- */}
+        {/* --- SECCIÓN 1: QUIÉNES SOMOS (ESTILO BENTO) --- */}
         <div className="col-lg-6">
             <div className="bento-card p-4 p-md-5 h-100 bg-body border-0 shadow-sm rounded-4 position-relative overflow-hidden">
                 {/* Decoración visual de fondo */}
@@ -85,7 +101,7 @@ function AboutContact() {
             </div>
         </div>
 
-        {/* --- SECCIÓN: CONTACTO (FORMULARIO INTERACTIVO) --- */}
+        {/* --- SECCIÓN 2: CONTACTO (FORMULARIO CONTROLADO) --- */}
         <div className="col-lg-6">
             <div className="bento-card p-4 p-md-5 h-100 bg-body border-0 shadow-sm rounded-4">
                 <h2 className="fw-bold mb-2">Contáctanos</h2>
@@ -99,8 +115,8 @@ function AboutContact() {
                                 type="text" 
                                 name="nombre"
                                 className="form-control rounded-3" 
-                                value={formData.nombre}
-                                onChange={manejarCambio}
+                                value={formData.nombre}     // React controla lo que se ve
+                                onChange={manejarCambio}    // React controla lo que se escribe
                                 required 
                             />
                         </div>
@@ -139,6 +155,7 @@ function AboutContact() {
                             ></textarea>
                         </div>
                         <div className="col-12 mt-4">
+                            {/* BOTÓN REACTIVO: Cambia su estado según 'enviando' */}
                             <button 
                                 type="submit" 
                                 className="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow-sm"

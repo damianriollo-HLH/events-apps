@@ -3,31 +3,36 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 /**
- * @component Dashboard
- * @description Panel de control principal del usuario. Gestiona las inscripciones, 
- * eventos creados y favoritos. Integra peticiones concurrentes a la API y filtrado en el cliente.
+ * =========================================================================
+ * COMPONENTE: DASHBOARD (El Panel de Control del Usuario)
+ * =========================================================================
+ * ¿Para qué sirve?: Es la "zona privada" del usuario. Aquí puede ver a qué 
+ * eventos asiste, cuáles ha organizado y cuáles tiene en favoritos.
+ * Destaca por su alto rendimiento al usar promesas concurrentes y estados derivados.
  */
 function Dashboard() {
-  const [enrollments, setEnrollments] = useState([]);
-  const [myEvents, setMyEvents] = useState([]);
-  const [favorites, setFavorites] = useState([]); 
+  // -----------------------------------------------------------------------
+  // 1. ESTADOS DE DATOS Y CARGA
+  // -----------------------------------------------------------------------
+  const [enrollments, setEnrollments] = useState([]); // Entradas compradas
+  const [myEvents, setMyEvents] = useState([]);       // Eventos que yo he creado
+  const [favorites, setFavorites] = useState([]);     // Eventos a los que di "Me gusta"
   const [loading, setLoading] = useState(true);
   
+  // Datos del perfil sacados del LocalStorage
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userImage, setUserImage] = useState(null);
 
+  // Control de la Interfaz (Pestañas y Modales)
   const [activeTab, setActiveTab] = useState('entradas');
   const navigate = useNavigate();
-
   const [showModal, setShowModal] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
 
-  /**
-   * Elimina un evento creado por el usuario y actualiza el estado local (Optimistic UI).
-   * @async
-   * @param {number} id - ID del evento a eliminar
-   */
+  // -----------------------------------------------------------------------
+  // 2. FUNCIÓN DE BORRADO (Actualización Optimista / Optimistic UI)
+  // -----------------------------------------------------------------------
   const handleDeleteEvent = async (id) => {
     const token = localStorage.getItem('auth_token');
     try {
@@ -37,6 +42,9 @@ function Dashboard() {
         });
 
         if (response.ok) {
+            // Magia Reactiva: En lugar de volver a pedir todos los eventos al servidor,
+            // filtramos el array local borrando el que coincide con el ID.
+            // Esto hace que desaparezca de la pantalla al instante.
             setMyEvents(prevEvents => prevEvents.filter(ev => ev.id !== id)); 
             toast.success("Evento cancelado y eliminado");
         }
@@ -45,10 +53,9 @@ function Dashboard() {
     }
   };
 
-  /**
-   * Efecto de inicialización.
-   * Resuelve la autenticación y obtiene las dependencias del usuario de forma concurrente.
-   */
+  // -----------------------------------------------------------------------
+  // 3. EFECTO DE INICIALIZACIÓN (Peticiones Concurrentes)
+  // -----------------------------------------------------------------------
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -57,11 +64,14 @@ function Dashboard() {
     }
 
     setUserName(localStorage.getItem('user_name') || 'Usuario');
-    setUserImage(localStorage.getItem('user_image'));
-    setUserEmail(localStorage.getItem('user_email') || 'usuario@caralibre.com');
+    const rawImage = localStorage.getItem('user_image');
+    setUserImage((rawImage && rawImage !== 'null' && rawImage !== 'undefined' && rawImage !== '') ? rawImage : null);    setUserEmail(localStorage.getItem('user_email') || 'usuario@caralibre.com');
 
     const headers = { 'Authorization': `Bearer ${token}` };
 
+    // PROMISE.ALL: El Santo Grial del rendimiento.
+    // En lugar de hacer 3 peticiones en cascada (que tardarían el triple),
+    // disparamos las 3 a la vez y esperamos a que todas terminen para pintar la web.
     Promise.all([
         fetch('http://127.0.0.1:8000/api/my-enrollments', { headers }),
         fetch('http://127.0.0.1:8000/api/my-events', { headers }),
@@ -70,12 +80,13 @@ function Dashboard() {
     .then(async ([resEnroll, resEvents, resFavs]) => {
         const dataEnroll = await resEnroll.json();
         const dataEvents = await resEvents.json();
+        // Controlamos los favoritos por si el usuario aún no tiene ninguno
         const dataFavs = resFavs.ok ? await resFavs.json() : []; 
         
         setEnrollments(dataEnroll);
         setMyEvents(dataEvents);
         setFavorites(dataFavs); 
-        setLoading(false);
+        setLoading(false); // Apagamos el loader general
     })
     .catch(err => {
         console.error("Fallo en la inicialización del Dashboard:", err);
@@ -84,15 +95,18 @@ function Dashboard() {
 
   }, [navigate]);
 
-  // Estado derivado para el filtrado de inscripciones (Próximos vs Pasados)
+  // -----------------------------------------------------------------------
+  // 4. ESTADOS DERIVADOS (Filtrado de Fechas en Cliente)
+  // -----------------------------------------------------------------------
+  // Calculamos dinámicamente qué eventos son pasados y cuáles futuros
+  // basándonos en la lista general de 'enrollments'. No necesitamos usar 'useState'
+  // para esto, porque se recalcula automáticamente si 'enrollments' cambia.
   const now = new Date();
   const upcomingEnrollments = enrollments.filter(event => new Date(event.start_at) >= now);
   const pastEnrollments = enrollments.filter(event => new Date(event.start_at) < now);
 
   /**
-   * Formatea una cadena de fecha en un objeto corto para las etiquetas visuales (badges).
-   * @param {string} dateString - Cadena de texto con la fecha
-   * @returns {{ month: string, day: number }}
+   * Utilidad visual: Extrae el mes y el día para pintar el mini-calendario Bento
    */
   const getShortDate = (dateString) => {
       const date = new Date(dateString);
@@ -102,6 +116,7 @@ function Dashboard() {
       };
   };
 
+  // Pantalla de carga inicial
   if (loading) {
       return (
         <div className="d-flex justify-content-center align-items-center" style={{minHeight: '60vh'}}>
